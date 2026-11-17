@@ -8,6 +8,7 @@
 //   code    : 버그가 심긴 코드. 버그는 반드시 한 줄에만 있어야 한다.
 //   bug     : 버그가 있는 줄 번호 (1부터, 빈 줄도 센다)
 //   fix     : 그 줄을 고친 모습
+//   wrong   : 고치기 단계에 나올 오답 보기 2개. code 는 그럴듯하지만 틀린 수정, why 는 왜 틀렸는지
 //   hints   : 틀릴 때마다 하나씩 열리는 힌트 3개 (증상, 종류, 결정적 단서)
 //   explain : 끝난 뒤 보여줄 해설
 //
@@ -28,6 +29,10 @@ window.PUZZLES = [
 }`,
     bug: 3,
     fix: "    for (int i = 1; i < n; i++) {",
+    wrong: [
+      { code: "    for (int i = 0; i <= n; i++) {", why: "시작을 0으로 바꿔도 끝은 그대로라 여전히 a[n]을 읽는다." },
+      { code: "    for (int i = 1; i < n - 1; i++) {", why: "이번엔 하나 덜 돈다. 마지막 칸 a[n-1]을 보지 않아서, 최댓값이 맨 끝에 있으면 틀린다." },
+    ],
     hints: [
       "대부분 맞는 답이 나오는데, 가끔 배열에 없던 엄청 큰 값이 튀어나온다.",
       "배열 범위를 벗어난 읽기다.",
@@ -48,6 +53,10 @@ WHERE e.manager_id = NULL
 ORDER BY e.name;`,
     bug: 5,
     fix: "WHERE e.manager_id IS NULL",
+    wrong: [
+      { code: "WHERE e.manager_id == NULL", why: "==도 결국 값 비교라 NULL과 비교하면 똑같이 UNKNOWN이 된다." },
+      { code: "WHERE e.manager_id = 'NULL'", why: "이건 'NULL'이라는 네 글자 문자열과 비교하는 것이다. 값이 없다는 뜻의 NULL과는 다르다." },
+    ],
     hints: [
       "에러는 안 나는데 결과가 항상 0행이다.",
       "NULL을 다루는 방식이 틀렸다.",
@@ -78,6 +87,10 @@ void *consumer(void *arg) {
 }`,
     bug: 11,
     fix: "    while (count == 0)",
+    wrong: [
+      { code: "    if (count <= 0)", why: "범위만 넓혔을 뿐 여전히 한 번만 검사한다. 깨어난 뒤 다시 확인하지 않는 문제는 그대로다." },
+      { code: "    while (count != 0)", why: "조건이 반대가 됐다. 가져갈 게 있을 때 기다리고, 없을 때 빼 버린다." },
+    ],
     hints: [
       "소비자가 여럿일 때 가끔 count가 -1이 된다.",
       "조건 변수를 기다리는 방식이 틀렸다.",
@@ -100,6 +113,10 @@ void *consumer(void *arg) {
 }`,
     bug: 3,
     fix: "    char *p = malloc(n + 1);",
+    wrong: [
+      { code: "    char *p = malloc(sizeof(s));", why: "sizeof(s)는 문자열 길이가 아니라 포인터 크기(보통 8바이트)다. 긴 문자열이면 한참 모자란다." },
+      { code: "    char *p = malloc(sizeof(char) * n);", why: "sizeof(char)는 1이라 원래 코드와 똑같이 n바이트다. 널 문자 자리는 여전히 없다." },
+    ],
     hints: [
       "보통은 잘 돌아가다가 엉뚱한 곳에서 힙이 깨졌다며 죽는다.",
       "버퍼가 1바이트 모자란다.",
@@ -121,6 +138,10 @@ GROUP BY c.id, c.name
 ORDER BY paid DESC;`,
     bug: 5,
     fix: "  AND o.status = 'paid'",
+    wrong: [
+      { code: "WHERE o.status = 'paid' OR o.status IS NULL", why: "주문이 아예 없는 고객은 살아나지만, 결제 안 된 주문만 있는 고객은 여전히 사라진다." },
+      { code: "  AND o.status IS NOT NULL", why: "고객은 모두 남지만 결제 여부를 가리지 않아서, 결제 안 된 주문까지 세어 버린다." },
+    ],
     hints: [
       "결제한 주문이 하나도 없는 고객이 결과에서 통째로 사라진다.",
       "LEFT JOIN이 사실상 INNER JOIN처럼 동작하고 있다.",
@@ -143,6 +164,10 @@ ORDER BY paid DESC;`,
 }`,
     bug: 4,
     fix: "        { pthread_mutex_unlock(&acc->m); return -1; }",
+    wrong: [
+      { code: "        { return -1; pthread_mutex_unlock(&acc->m); }", why: "return 뒤에 있는 코드는 실행되지 않는다. 락은 여전히 안 풀린다." },
+      { code: "        { pthread_mutex_destroy(&acc->m); return -1; }", why: "락을 푸는 게 아니라 없애 버린다. 잠긴 뮤텍스를 destroy하는 건 정의되지 않은 동작이고, 이후 계좌를 쓸 수 없게 된다." },
+    ],
     hints: [
       "잔액 부족이 한 번 난 뒤로 그 계좌를 쓰는 스레드가 전부 멈춘다.",
       "락을 풀지 않고 빠져나가는 길이 있다.",
@@ -167,6 +192,10 @@ ORDER BY paid DESC;`,
 }`,
     bug: 4,
     fix: '    scanf("%d", &n);',
+    wrong: [
+      { code: "    scanf(\"%d\", *n);", why: "n은 포인터가 아니라 int라서 *n은 컴파일조차 되지 않는다." },
+      { code: "    scanf(\"%d\", &max);", why: "주소를 넘기긴 했지만 엉뚱한 변수다. 입력이 max에 들어가고 n은 초기화되지 않은 채로 쓰인다." },
+    ],
     hints: [
       "개수를 입력하자마자 세그폴트로 죽는다.",
       "값을 넘겨야 할 곳과 주소를 넘겨야 할 곳이 뒤바뀌었다.",
@@ -187,6 +216,10 @@ ORDER BY gpa DESC
 LIMIT 10;`,
     bug: 4,
     fix: "  AND (dept = 'CSE' OR dept = 'EE')",
+    wrong: [
+      { code: "  AND dept = 'CSE' AND dept = 'EE'", why: "한 학생의 학부가 동시에 CSE이면서 EE일 수는 없어서 결과가 0행이 된다." },
+      { code: "  OR dept = 'CSE' OR dept = 'EE'", why: "4학년 전부에 두 학부의 전 학년까지 통과한다. 조건이 오히려 더 느슨해졌다." },
+    ],
     hints: [
       "전자공학부 1학년이 결과에 섞여 나온다.",
       "논리 연산자의 우선순위 문제다.",
@@ -207,22 +240,29 @@ LIMIT 10;`,
 
 int main(void) {
     pthread_t t[4];
-    for (int i = 0; i < 4; i++)
+    int ids[4];
+    for (int i = 0; i < 4; i++) {
+        ids[i] = i;
         pthread_create(&t[i], NULL,
                        run, &i);
+    }
     for (int i = 0; i < 4; i++)
         pthread_join(t[i], NULL);
     return 0;
 }`,
-    bug: 11,
+    bug: 13,
     fix: "                       run, &ids[i]);",
+    wrong: [
+      { code: "                       run, ids);", why: "배열 이름은 첫 칸의 주소라, 네 스레드 모두 ids[0]을 읽어 0만 출력한다." },
+      { code: "                       run, &t[i]);", why: "스레드마다 다른 주소이긴 하지만 거기 든 건 번호가 아니라 스레드 핸들이다. 엉뚱한 값을 int로 읽는다." },
+    ],
     hints: [
       "같은 번호가 두 번 찍히거나 4 같은 엉뚱한 번호가 나온다. 돌릴 때마다 결과가 다르다.",
       "스레드 여러 개가 변수 하나를 함께 보고 있다.",
       "새 스레드가 arg를 읽는 시점에 i는 아직 그 값일까?",
     ],
     explain:
-      "네 스레드 모두 같은 변수 i의 주소를 받는다. 새 스레드가 *arg를 읽기 전에 main의 반복문이 i를 바꿔 버리면 엉뚱한 번호를 읽고, 반복문이 끝난 뒤에 읽으면 이미 사라진 변수를 읽게 된다. 스레드마다 따로 보관된 값(예: int ids[4] 배열의 각 칸)의 주소를 넘겨야 한다.",
+      "네 스레드 모두 같은 변수 i의 주소를 받는다. 새 스레드가 *arg를 읽기 전에 main의 반복문이 i를 바꿔 버리면 엉뚱한 번호를 읽고, 반복문이 끝난 뒤에 읽으면 이미 사라진 변수를 읽게 된다. 번호를 담아 두려고 ids 배열까지 만들어 놓고는 정작 넘길 때 &i를 썼다. 스레드마다 따로 보관된 칸인 &ids[i]를 넘겨야 한다.",
   },
   {
     subject: "C 포인터",
@@ -237,6 +277,10 @@ int main(void) {
 }`,
     bug: 5,
     fix: "            (*n)++;",
+    wrong: [
+      { code: "            *(n++);", why: "괄호만 쳤을 뿐 원래 코드와 뜻이 완전히 같다. 여전히 포인터가 증가한다." },
+      { code: "            *++n;", why: "포인터를 먼저 옮기고 그 자리를 읽기만 한다. 값은 하나도 늘지 않는다." },
+    ],
     hints: [
       "모음이 몇 개든 결과가 항상 0이다.",
       "연산자 우선순위 때문에 엉뚱한 것이 증가한다.",

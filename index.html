@@ -126,6 +126,8 @@ button { font: inherit; color: inherit; }
 }
 .tries-boxes i.miss { background: var(--miss); border-color: var(--miss); }
 .tries-boxes i.hit { background: var(--accent); border-color: var(--accent); }
+.tries-boxes .sep { width: 10px; height: 1.5px; align-self: center; background: var(--line); }
+.tries-boxes i.fx { border-radius: 50%; }
 .tries-boxes i.pop { animation: pop 0.45s var(--ease); }
 .tries-label { font-size: 13px; color: var(--ink-2); }
 
@@ -248,6 +250,35 @@ button { font: inherit; color: inherit; }
 .diff .del > span:first-child { color: var(--miss); }
 .diff .add { background: var(--accent-wash); }
 .diff .add > span:first-child { color: var(--accent); }
+.fix { display: flex; flex-direction: column; gap: 10px; animation: rise 0.6s var(--ease) both; scroll-margin-top: 16px; }
+.fix-title { margin: 6px 0 2px; font-size: 19px; font-weight: 700; letter-spacing: -0.02em; line-height: 1.3; }
+.fix-title span { display: block; margin-bottom: 3px; font-size: 12px; font-weight: 600; letter-spacing: 0.04em; color: var(--accent); }
+.fix-title b { font-weight: 700; }
+.opts { display: grid; gap: 8px; }
+.opt {
+  display: grid; grid-template-columns: 40px 1fr; align-items: center; row-gap: 4px;
+  min-height: 52px; width: 100%; padding: 10px 14px 10px 0; margin: 0;
+  border: 1px solid var(--line); border-radius: 12px; background: var(--surface);
+  text-align: left; cursor: pointer; -webkit-tap-highlight-color: transparent;
+  transition: background 0.25s var(--ease), border-color 0.25s var(--ease), transform 0.15s var(--ease);
+}
+.opt .key { text-align: center; font-size: 12px; font-weight: 600; color: var(--ink-3); }
+.opt code {
+  font-family: var(--mono); font-size: 12.5px; line-height: 1.5;
+  white-space: pre-wrap; overflow-wrap: anywhere;
+  font-variant-ligatures: none; font-feature-settings: "liga" 0, "calt" 0;
+}
+.opt .why { grid-column: 2; font-size: 13px; line-height: 1.5; color: var(--ink-2); }
+.opt:not(:disabled):active { transform: scale(0.99); }
+.opt:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.opt.picked { border-color: var(--ink); background: var(--pick-wash); }
+.opt.picked .key { color: var(--ink); }
+.opt:disabled { cursor: default; color: inherit; }
+.opt.right { border-color: var(--accent); background: var(--accent-wash); }
+.opt.right .key, .opt.right .why { color: var(--accent); font-weight: 600; }
+.opt.wrong { border-color: var(--miss); background: var(--miss-wash); }
+.opt.wrong .key { color: var(--miss); }
+@media (hover: hover) { .opt:not(:disabled):not(.picked):hover { background: var(--pick-wash); } }
 .explain { margin: 0; font-size: 15px; line-height: 1.7; color: var(--ink-2); max-width: 60ch; }
 .actions { display: grid; grid-template-columns: 1fr; gap: 10px; }
 .stats {
@@ -347,6 +378,12 @@ button { font: inherit; color: inherit; }
       <div class="code-scroll"><div class="rows" id="rows"></div></div>
     </section>
 
+    <section class="fix" id="fix" hidden>
+      <h2 class="fix-title"><span>2단계: 고치기</span><b id="fixLead"></b></h2>
+      <div class="diff"><div class="del" id="fixBefore"></div></div>
+      <div class="opts" id="opts"></div>
+    </section>
+
     <div class="dock" id="dock">
       <p class="dock-hint" id="dockHint" hidden></p>
       <button class="btn" id="submit" disabled>줄을 먼저 골라</button>
@@ -354,7 +391,6 @@ button { font: inherit; color: inherit; }
 
     <section class="result" id="result" hidden>
       <h2 class="verdict" id="verdict"></h2>
-      <div class="diff" id="diff"></div>
       <p class="explain" id="explain"></p>
       <div class="actions">
         <button class="btn accent" id="share">
@@ -380,6 +416,8 @@ button { font: inherit; color: inherit; }
   var KST = 9 * 36e5;
   var EPOCH_DAY = Date.UTC(2026, 10, 17) / DAY; // 2026-11-17 (한국 시간) = 1번 문제
   var STORE = "bugaday:v1:";
+  var KEYS = ["A", "B", "C"];
+  var ORDERS = [[0, 1, 2], [1, 2, 0], [2, 0, 1], [1, 0, 2], [0, 2, 1], [2, 1, 0]];
   var $ = function (id) { return document.getElementById(id); };
 
   var puzzles = window.PUZZLES;
@@ -400,6 +438,10 @@ button { font: inherit; color: inherit; }
   var lines = puzzle.code.split("\n");
   var dateKey = new Date(today * DAY).toISOString().slice(0, 10);
 
+  // 고치기 보기: 0번이 정답, 1·2번이 오답. 섞는 순서는 문제 번호로 정해서 모두에게 같다.
+  var options = [{ code: puzzle.fix, why: "" }].concat(puzzle.wrong || []);
+  var order = ORDERS[((issue % 6) + 6) % 6].filter(function (i) { return i < options.length; });
+
   // ---------- 저장 ----------
   function load(key, fallback) {
     try {
@@ -411,10 +453,18 @@ button { font: inherit; color: inherit; }
     try { localStorage.setItem(STORE + key, JSON.stringify(value)); } catch (e) {}
   }
 
+  // 상태: guesses(고른 줄들), findDone(찾기 끝), found(줄을 맞혔나), fix(고른 보기, 0이 정답), done(전부 끝)
   var state = load("day:" + dateKey, null);
-  if (!state || !Array.isArray(state.guesses)) state = { guesses: [], done: false, won: false };
+  if (!state || !Array.isArray(state.guesses)) {
+    state = { guesses: [], findDone: false, found: false, fix: null, done: false };
+  } else if (state.findDone === undefined) {
+    // 고치기 단계가 생기기 전에 저장된 기록: 찾기 결과는 살리고 고치기부터 이어서 한다
+    state = { guesses: state.guesses, findDone: !!state.done, found: !!state.won, fix: null, done: false };
+  }
   state.guesses = state.guesses.filter(function (n) { return n >= 1 && n <= lines.length; }).slice(0, MAX_TRIES);
-  var picked = null;
+  if (options.length < 2 && state.findDone) state.done = true;
+  var picked = null;    // 찾기 단계에서 고른 줄
+  var optPicked = null; // 고치기 단계에서 고른 보기
 
   // ---------- 색칠 ----------
   function esc(s) {
@@ -438,6 +488,7 @@ button { font: inherit; color: inherit; }
 
   // ---------- 그리기 ----------
   function misses() { return state.guesses.filter(function (n) { return n !== puzzle.bug; }).length; }
+  function fixed() { return state.fix === 0; }
 
   function renderHead() {
     $("issueNo").textContent = "#" + issue;
@@ -470,8 +521,45 @@ button { font: inherit; color: inherit; }
 
   function rowOf(n) { return $("rows").querySelector('[data-line="' + n + '"]'); }
 
+  function renderFix() {
+    var sec = $("fix");
+    sec.hidden = !state.findDone || options.length < 2;
+    if (sec.hidden) return;
+
+    // 보기들과 원래 줄이 공통으로 가진 들여쓰기는 떼고 보여준다
+    var before = lines[puzzle.bug - 1];
+    var cut = before.search(/\S|$/);
+    options.forEach(function (o) { cut = Math.min(cut, o.code.search(/\S|$/)); });
+
+    $("fixLead").textContent = state.done
+      ? puzzle.bug + "번 줄은 이렇게 고쳐야 했어"
+      : puzzle.bug + "번 줄을 무엇으로 바꿔야 할까?";
+    $("fixBefore").innerHTML = "<span>-</span><code>" + paint(before.slice(cut), puzzle.lang) + "</code>";
+
+    $("opts").innerHTML = order.map(function (id, pos) {
+      var o = options[id];
+      var cls = "opt";
+      var note = "";
+      if (state.done) {
+        if (id === 0) { cls += " right"; note = "정답"; }
+        else {
+          if (id === state.fix) cls += " wrong";
+          note = o.why;
+        }
+      } else if (optPicked === id) {
+        cls += " picked";
+      }
+      return '<button class="' + cls + '" type="button" data-opt="' + id + '"' +
+        (state.done ? " disabled" : "") + ' aria-pressed="' + (optPicked === id) + '">' +
+        '<span class="key">' + KEYS[pos] + "</span><code>" + paint(o.code.slice(cut), puzzle.lang) + "</code>" +
+        (note ? '<span class="why">' + esc(note) + "</span>" : "") + "</button>";
+    }).join("");
+  }
+
   function renderState(popIndex) {
-    // 시도 칸
+    var stage = state.done ? "done" : state.findDone ? "fix" : "find";
+
+    // 시도 칸: 찾기 4칸 + 고치기 1칸
     var boxes = "";
     for (var i = 0; i < MAX_TRIES; i++) {
       var g = state.guesses[i];
@@ -479,11 +567,15 @@ button { font: inherit; color: inherit; }
       if (i === popIndex) cls += " pop";
       boxes += '<i class="' + cls + '"></i>';
     }
+    var fcls = state.fix === null ? "" : fixed() ? "hit" : "miss";
+    if (popIndex === "fix") fcls += " pop";
+    boxes += '<b class="sep"></b><i class="fx ' + fcls + '"></i>';
     $("triesBoxes").innerHTML = boxes;
-    var left = MAX_TRIES - state.guesses.length;
-    $("triesLabel").textContent = state.done
-      ? (state.won ? state.guesses.length + "번 만에 찾음" : "기회를 다 썼어")
-      : "기회 " + left + "번 남음";
+    $("triesLabel").textContent =
+      stage === "find" ? "찾기 " + (MAX_TRIES - state.guesses.length) + "번 남음"
+      : stage === "fix" ? "고치기는 한 번뿐"
+      : (state.found ? "찾기 " + state.guesses.length + "/" + MAX_TRIES : "찾기 실패") +
+        (fixed() ? ", 고치기 성공" : ", 고치기 실패");
 
     // 줄 상태
     $("rows").querySelectorAll("button.row").forEach(function (row) {
@@ -491,71 +583,80 @@ button { font: inherit; color: inherit; }
       var guessed = state.guesses.indexOf(n) !== -1;
       var isBug = n === puzzle.bug;
       row.classList.toggle("miss", guessed && !isBug);
-      row.classList.toggle("hit", isBug && state.done);
-      row.classList.toggle("picked", !state.done && picked === n);
-      row.disabled = state.done || guessed;
+      row.classList.toggle("hit", isBug && state.findDone);
+      row.classList.toggle("picked", stage === "find" && picked === n);
+      row.disabled = state.findDone || guessed;
       row.setAttribute("aria-pressed", picked === n ? "true" : "false");
     });
 
-    // 힌트
+    // 힌트: 틀린 만큼 열리고, 전부 끝나면 다 보여준다
     var open = state.done ? puzzle.hints.length : Math.min(misses(), puzzle.hints.length);
     var names = ["증상", "종류", "단서"];
     $("hints").innerHTML = puzzle.hints.map(function (h, i) {
       return i < open
         ? '<li class="open"><span class="tag">' + names[i] + "</span><p>" + esc(h) + "</p></li>"
         : '<li class="locked"><span class="tag">' + names[i] + "</span><p>" +
-          (i === open ? "한 번 틀리면 열려" : "잠김") + "</p></li>";
+          (stage === "find" && i === open ? "한 번 틀리면 열려" : "잠김") + "</p></li>";
     }).join("");
 
     // 폰에서는 힌트 목록이 코드 아래에 있으므로, 방금 열린 힌트를 제출 버튼 위에도 보여준다
     var dh = $("dockHint");
-    dh.hidden = open === 0 || state.done;
+    dh.hidden = open === 0 || stage !== "find";
     if (!dh.hidden) dh.innerHTML = "<b>힌트 " + open + "</b>" + esc(puzzle.hints[open - 1]);
 
-    // 제출 버튼
+    // 제출 버튼: 단계에 따라 하는 일이 바뀐다
     var btn = $("submit");
-    btn.disabled = picked === null;
-    btn.textContent = picked === null ? "줄을 먼저 골라" : picked + "번 줄로 제출";
-    $("dock").hidden = state.done;
-    $("page").classList.toggle("done", state.done);
-    $("codeHelp").textContent = state.done ? "버그는 " + puzzle.bug + "번 줄" : "버그가 있는 줄을 골라";
+    if (stage === "find") {
+      btn.disabled = picked === null;
+      btn.textContent = picked === null ? "줄을 먼저 골라" : picked + "번 줄로 제출";
+    } else if (stage === "fix") {
+      btn.disabled = optPicked === null;
+      btn.textContent = optPicked === null ? "보기를 먼저 골라" : KEYS[order.indexOf(optPicked)] + "로 고치기";
+    }
+    $("dock").hidden = stage === "done";
+    $("page").classList.toggle("done", stage === "done");
+    $("codeHelp").textContent = stage === "find" ? "1단계: 버그가 있는 줄을 골라" : "버그는 " + puzzle.bug + "번 줄";
 
-    if (state.done) renderResult();
+    renderFix();
+    if (stage === "done") renderResult();
   }
 
   function renderResult() {
     $("result").hidden = false;
-    var v = $("verdict");
-    if (state.won) {
-      var n = state.guesses.length;
-      v.innerHTML = (n === 1 ? "한 번에 찾았어" : n + "번 만에 찾았어") +
-        "<small>" + puzzle.bug + "번 줄이 버그였어.</small>";
+    var n = state.guesses.length;
+    var head, sub;
+    if (state.found && fixed()) {
+      head = n === 1 ? "한 번에 찾고 제대로 고쳤어" : n + "번 만에 찾고 제대로 고쳤어";
+      sub = "오늘 버그는 완전히 잡았어.";
+    } else if (state.found) {
+      head = "찾긴 했는데 고치기에서 틀렸어";
+      sub = "어디가 틀렸는지는 알았으니 절반은 온 거야.";
+    } else if (fixed()) {
+      head = "줄은 놓쳤지만 고치는 법은 알았어";
+      sub = "버그는 " + puzzle.bug + "번 줄에 있었어.";
     } else {
-      v.innerHTML = "오늘은 놓쳤어<small>버그는 " + puzzle.bug + "번 줄에 있었어.</small>";
+      head = "오늘은 놓쳤어";
+      sub = "버그는 " + puzzle.bug + "번 줄에 있었어.";
     }
-    // 두 줄이 공통으로 가진 들여쓰기는 떼고 보여준다
-    var before = lines[puzzle.bug - 1], after = puzzle.fix;
-    var cut = Math.min(before.search(/\S|$/), after.search(/\S|$/));
-    $("diff").innerHTML =
-      '<div class="del"><span>-</span><code>' + paint(before.slice(cut), puzzle.lang) + "</code></div>" +
-      '<div class="add"><span>+</span><code>' + paint(after.slice(cut), puzzle.lang) + "</code></div>";
+    $("verdict").innerHTML = esc(head) + "<small>" + esc(sub) + "</small>";
     $("explain").textContent = puzzle.explain;
 
     var s = load("stats", { played: 0, won: 0, streak: 0, best: 0 });
     var rate = s.played ? Math.round((s.won / s.played) * 100) : 0;
     $("stats").innerHTML =
       "<div><dt>플레이</dt><dd>" + s.played + "<small>판</small></dd></div>" +
-      "<div><dt>정답률</dt><dd>" + rate + "<small>%</small></dd></div>" +
+      "<div><dt>완전 정답률</dt><dd>" + rate + "<small>%</small></dd></div>" +
       "<div><dt>연속 정답</dt><dd>" + s.streak + "<small>일</small></dd></div>" +
       "<div><dt>최고 연속</dt><dd>" + s.best + "<small>일</small></dd></div>";
     tick();
   }
 
   // ---------- 진행 ----------
-  function finish(won) {
+  // 찾기와 고치기를 둘 다 맞혀야 통계에서 정답으로 센다
+  function finish() {
     state.done = true;
-    state.won = won;
     if (override !== null) return;
+    var won = state.found && fixed();
     var s = load("stats", { played: 0, won: 0, streak: 0, best: 0, lastWin: null, lastDay: null });
     if (s.lastDay === today) return; // 같은 날 두 번 세지 않는다
     s.played += 1;
@@ -571,46 +672,67 @@ button { font: inherit; color: inherit; }
     save("stats", s);
   }
 
-  function submit() {
-    if (state.done || picked === null) return;
+  function scrollTo(id) {
+    setTimeout(function () { $(id).scrollIntoView({ behavior: "smooth", block: "start" }); }, 500);
+  }
+
+  function submitFind() {
+    if (picked === null) return;
     var n = picked;
     picked = null;
     state.guesses.push(n);
     var hit = n === puzzle.bug;
-    if (hit) finish(true);
-    else if (state.guesses.length >= MAX_TRIES) finish(false);
+    if (hit || state.guesses.length >= MAX_TRIES) {
+      state.findDone = true;
+      state.found = hit;
+      if (options.length < 2) finish();
+    }
     save("day:" + dateKey, state);
     renderState(state.guesses.length - 1);
 
     // 틀린 줄은 흔들고, 정답 줄은(맞혔거나 기회를 다 써서 공개될 때) 반짝인다
     var missRow = hit ? null : rowOf(n);
     if (missRow) missRow.classList.add("shake");
-    var bugRow = state.done ? rowOf(puzzle.bug) : null;
+    var bugRow = state.findDone ? rowOf(puzzle.bug) : null;
     if (bugRow) bugRow.classList.add("flash");
-    if (state.done) {
-      setTimeout(function () {
-        $("result").scrollIntoView({ behavior: "smooth", block: "start" });
-      }, 500);
-    }
+    if (state.findDone) scrollTo(state.done ? "result" : "fix");
+  }
+
+  function submitFix() {
+    if (optPicked === null) return;
+    state.fix = optPicked;
+    optPicked = null;
+    finish();
+    save("day:" + dateKey, state);
+    renderState("fix");
+    scrollTo("fix");
   }
 
   $("rows").addEventListener("click", function (e) {
     var row = e.target.closest("button.row");
-    if (!row || row.disabled || state.done) return;
+    if (!row || row.disabled || state.findDone) return;
     var n = +row.dataset.line;
     picked = picked === n ? null : n;
     renderState();
   });
-  $("submit").addEventListener("click", submit);
+  $("opts").addEventListener("click", function (e) {
+    var opt = e.target.closest("button.opt");
+    if (!opt || opt.disabled || state.done) return;
+    var id = +opt.dataset.opt;
+    optPicked = optPicked === id ? null : id;
+    renderState();
+  });
+  $("submit").addEventListener("click", function () {
+    if (state.done) return;
+    if (state.findDone) submitFix(); else submitFind();
+  });
 
   // ---------- 공유 ----------
   function shareText() {
-    var squares = state.guesses.map(function (n) {
-      return n === puzzle.bug ? "🟩" : "🟥";
-    }).join("");
-    var score = (state.won ? state.guesses.length : "X") + "/" + MAX_TRIES;
+    var G = "🟩", R = "🟥";
+    var find = state.guesses.map(function (n) { return n === puzzle.bug ? G : R; }).join("");
     var url = location.protocol === "file:" ? "" : "\n" + location.origin + location.pathname;
-    return "버글 #" + issue + " " + score + "\n" + squares + url;
+    return "버글 #" + issue + "\n찾기 " + find + "\n고치기 " + (fixed() ? G : R) + url;
   }
 
   var toastTimer = null;
