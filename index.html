@@ -1,0 +1,669 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>하루 한 버그</title>
+<meta name="description" content="하루에 한 판. 짧은 코드에 숨은 버그 한 줄을 찾아라.">
+<meta property="og:title" content="하루 한 버그">
+<meta property="og:description" content="하루에 한 판. 짧은 코드에 숨은 버그 한 줄을 찾아라.">
+<meta property="og:type" content="website">
+<meta name="theme-color" content="#fafafa" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0e0e10" media="(prefers-color-scheme: dark)">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+<style>
+:root {
+  --bg: #fafafa;
+  --surface: #ffffff;
+  --ink: #18181b;
+  --ink-2: #52525b;
+  --ink-3: #7f7f88;
+  --line: #e4e4e7;
+  --line-soft: #f1f1f3;
+  --accent: #17885f;
+  --accent-ink: #ffffff;
+  --accent-wash: #e3f3ec;
+  --miss: #b9443b;
+  --miss-wash: #f8e6e4;
+  --pick-wash: #f1f1f3;
+  --tok-k: #7a4b12;
+  --tok-s: #17705a;
+  --tok-n: #8a3f6b;
+  --tok-c: #7f7f88;
+  --shadow: 0 18px 40px -22px rgba(24, 24, 27, 0.22);
+  --ease: cubic-bezier(0.16, 1, 0.3, 1);
+  --sans: "Outfit", "Pretendard Variable", Pretendard, -apple-system, "Apple SD Gothic Neo", sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0e0e10;
+    --surface: #161618;
+    --ink: #f4f4f5;
+    --ink-2: #a1a1aa;
+    --ink-3: #63636b;
+    --line: #27272a;
+    --line-soft: #1d1d20;
+    --accent: #3fb489;
+    --accent-ink: #06130e;
+    --accent-wash: #12291f;
+    --miss: #e0786f;
+    --miss-wash: #321a18;
+    --pick-wash: #222225;
+    --tok-k: #d9a866;
+    --tok-s: #6fc7a6;
+    --tok-n: #d48fb5;
+    --tok-c: #63636b;
+    --shadow: 0 18px 40px -22px rgba(0, 0, 0, 0.7);
+  }
+}
+
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--sans);
+  font-size: 16px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  word-break: keep-all;
+}
+button { font: inherit; color: inherit; }
+[hidden] { display: none !important; }
+
+.page {
+  max-width: 1180px;
+  margin: 0 auto;
+  min-height: 100dvh;
+  padding: 20px 16px 0;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 20px;
+  align-content: start;
+  grid-template-areas: "mast" "stage" "side";
+}
+.mast { grid-area: mast; }
+.stage { grid-area: stage; }
+.side { grid-area: side; display: flex; flex-direction: column; gap: 14px; padding-bottom: 110px; }
+.page.done .side { padding-bottom: 28px; }
+
+/* ---------- 머리말 ---------- */
+.mast { display: flex; flex-direction: column; gap: 14px; }
+.brand {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 13px; font-weight: 600; letter-spacing: 0.02em; color: var(--ink-2);
+}
+.brand i {
+  width: 8px; height: 8px; border-radius: 2px; background: var(--accent);
+  animation: breathe 2.4s ease-in-out infinite;
+}
+.issue { display: flex; align-items: baseline; gap: 12px; }
+.issue-no {
+  font-family: var(--mono); font-weight: 600;
+  font-size: 44px; line-height: 1; letter-spacing: -0.04em;
+}
+.issue-meta { font-size: 13px; color: var(--ink-2); line-height: 1.4; }
+.issue-meta b { display: block; color: var(--ink); font-weight: 600; font-size: 14px; }
+.goal { margin: 0; font-size: 16px; line-height: 1.55; max-width: 34ch; }
+.goal span {
+  display: block; margin-bottom: 4px;
+  font-size: 12px; font-weight: 600; color: var(--ink-3); letter-spacing: 0.04em;
+}
+
+.tries { display: flex; align-items: center; gap: 10px; }
+.tries-boxes { display: flex; gap: 5px; }
+.tries-boxes i {
+  width: 22px; height: 22px; border-radius: 5px;
+  border: 1.5px solid var(--line); background: transparent;
+  transition: background 0.4s var(--ease), border-color 0.4s var(--ease), transform 0.4s var(--ease);
+}
+.tries-boxes i.miss { background: var(--miss); border-color: var(--miss); }
+.tries-boxes i.hit { background: var(--accent); border-color: var(--accent); }
+.tries-boxes i.pop { animation: pop 0.45s var(--ease); }
+.tries-label { font-size: 13px; color: var(--ink-2); }
+
+/* ---------- 힌트 ---------- */
+.hints { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--line); }
+.hints li {
+  display: grid; grid-template-columns: 44px 1fr; gap: 8px;
+  padding: 11px 0; border-bottom: 1px solid var(--line);
+  font-size: 14px; line-height: 1.5;
+}
+.hints .tag { font-size: 12px; font-weight: 600; color: var(--ink-3); padding-top: 1px; }
+.hints li.open .tag { color: var(--accent); }
+.hints li.open p { margin: 0; animation: rise 0.5s var(--ease) both; }
+.hints li.locked p { margin: 0; color: var(--ink-3); }
+
+/* ---------- 코드 ---------- */
+.stage { min-width: 0; display: flex; flex-direction: column; gap: 14px; }
+.code {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  box-shadow: var(--shadow);
+  overflow: hidden;
+}
+.code-head {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 10px 14px; border-bottom: 1px solid var(--line-soft);
+  font-size: 12px; color: var(--ink-3);
+}
+.code-head b { color: var(--ink-2); font-weight: 600; }
+.code-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.rows { display: grid; min-width: max-content; padding: 6px 0; }
+.row {
+  display: grid; grid-template-columns: 32px 1fr; align-items: center;
+  min-height: 31px; width: 100%;
+  padding: 0 12px 0 0; margin: 0;
+  border: 0; background: transparent; text-align: left;
+  font-family: var(--mono); font-size: 12.5px; line-height: 1.5;
+  cursor: pointer; position: relative;
+  -webkit-tap-highlight-color: transparent;
+  transition: background 0.25s var(--ease), transform 0.15s var(--ease);
+  animation: rise 0.5s var(--ease) both;
+  animation-delay: calc(var(--i) * 28ms);
+}
+.row::before {
+  content: ""; position: absolute; left: 0; top: 3px; bottom: 3px; width: 3px;
+  border-radius: 0 3px 3px 0; background: transparent;
+  transition: background 0.25s var(--ease);
+}
+.row .ln {
+  text-align: right; padding-right: 10px; color: var(--ink-3);
+  font-size: 11px; user-select: none;
+}
+.row code { font: inherit; white-space: pre; }
+.row.blank { cursor: default; min-height: 18px; }
+@media (hover: hover) { .row:not(.blank):not(:disabled):hover { background: var(--pick-wash); } }
+.row:not(:disabled):active { transform: scale(0.992); }
+.row:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.row.picked { background: var(--pick-wash); }
+.row.picked::before { background: var(--ink); }
+.row:disabled { cursor: default; color: inherit; }
+.row.miss { background: var(--miss-wash); }
+.row.miss::before { background: var(--miss); }
+.row.miss .ln { color: var(--miss); text-decoration: line-through; }
+.row.hit { background: var(--accent-wash); }
+.row.hit::before { background: var(--accent); }
+.row.hit .ln { color: var(--accent); font-weight: 600; }
+.row.shake { animation: shake 0.42s var(--ease); }
+.row.flash { animation: flash 0.9s var(--ease); }
+
+.t-k { color: var(--tok-k); }
+.t-s { color: var(--tok-s); }
+.t-n { color: var(--tok-n); }
+.t-c { color: var(--tok-c); font-style: italic; }
+
+/* ---------- 제출 막대 ---------- */
+.dock {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 10;
+  padding: 12px 16px calc(12px + env(safe-area-inset-bottom));
+  background: color-mix(in srgb, var(--bg) 86%, transparent);
+  backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+  border-top: 1px solid var(--line);
+}
+.dock-hint {
+  margin: 0 0 10px; font-size: 13.5px; line-height: 1.45; color: var(--ink);
+  animation: rise 0.5s var(--ease) both;
+}
+.dock-hint b { color: var(--miss); font-weight: 600; margin-right: 6px; }
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  min-height: 50px; padding: 0 22px; width: 100%;
+  border-radius: 12px; border: 1px solid var(--ink);
+  background: var(--ink); color: var(--bg);
+  font-weight: 600; font-size: 15px; cursor: pointer;
+  transition: transform 0.2s var(--ease), background 0.3s var(--ease), opacity 0.3s var(--ease), border-color 0.3s var(--ease);
+  -webkit-tap-highlight-color: transparent;
+}
+.btn:active:not(:disabled) { transform: scale(0.98); }
+.btn:disabled {
+  background: transparent; color: var(--ink-3); border-color: var(--line); cursor: default;
+}
+.btn.ghost { background: transparent; color: var(--ink); border-color: var(--line); }
+.btn.accent { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.btn svg { width: 17px; height: 17px; flex: none; }
+.btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* ---------- 결과 ---------- */
+.result { display: flex; flex-direction: column; gap: 18px; padding-bottom: 28px; animation: rise 0.6s var(--ease) both; }
+.verdict { margin: 0; font-size: 26px; font-weight: 700; letter-spacing: -0.03em; line-height: 1.2; }
+.verdict small { display: block; margin-top: 6px; font-size: 14px; font-weight: 400; letter-spacing: 0; color: var(--ink-2); }
+.diff {
+  border: 1px solid var(--line); border-radius: 12px; overflow-x: auto;
+  background: var(--surface); font-family: var(--mono); font-size: 13px; line-height: 1.5;
+}
+.diff div { display: grid; grid-template-columns: 28px 1fr; min-width: max-content; padding: 7px 14px 7px 0; }
+.diff div > span:first-child { text-align: center; font-weight: 600; user-select: none; }
+.diff code { font: inherit; white-space: pre; }
+.diff .del { background: var(--miss-wash); }
+.diff .del > span:first-child { color: var(--miss); }
+.diff .add { background: var(--accent-wash); }
+.diff .add > span:first-child { color: var(--accent); }
+.explain { margin: 0; font-size: 15px; line-height: 1.7; color: var(--ink-2); max-width: 60ch; }
+.actions { display: grid; grid-template-columns: 1fr; gap: 10px; }
+.stats {
+  display: grid; grid-template-columns: repeat(2, 1fr); gap: 0;
+  border-top: 1px solid var(--line);
+}
+.stats div { padding: 14px 0; border-bottom: 1px solid var(--line); }
+.stats dt { font-size: 12px; color: var(--ink-3); font-weight: 600; }
+.stats dd { margin: 2px 0 0; font-family: var(--mono); font-size: 22px; font-weight: 600; letter-spacing: -0.03em; }
+.stats dd small { font-family: var(--sans); font-size: 13px; font-weight: 400; color: var(--ink-2); letter-spacing: 0; margin-left: 2px; }
+
+.note {
+  margin: 0; padding: 10px 12px; border-radius: 10px;
+  background: var(--line-soft); font-size: 13px; color: var(--ink-2);
+}
+.fatal { padding: 48px 0; max-width: 40ch; }
+.fatal h1 { font-size: 22px; margin: 0 0 8px; letter-spacing: -0.02em; }
+.fatal p { margin: 0; color: var(--ink-2); }
+
+.toast {
+  position: fixed; left: 50%; bottom: calc(86px + env(safe-area-inset-bottom)); z-index: 20;
+  transform: translate(-50%, 12px); opacity: 0; pointer-events: none;
+  padding: 10px 16px; border-radius: 999px;
+  background: var(--ink); color: var(--bg); font-size: 14px; font-weight: 500;
+  transition: transform 0.4s var(--ease), opacity 0.4s var(--ease);
+  white-space: nowrap;
+}
+.toast.on { transform: translate(-50%, 0); opacity: 1; }
+
+@keyframes rise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-7px); } 40% { transform: translateX(6px); }
+  60% { transform: translateX(-4px); } 80% { transform: translateX(2px); }
+}
+@keyframes flash { 0% { transform: scale(1); } 30% { transform: scale(1.012); } 100% { transform: scale(1); } }
+@keyframes pop { 0% { transform: scale(0.6); } 60% { transform: scale(1.15); } 100% { transform: scale(1); } }
+@keyframes breathe { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.45; transform: scale(0.8); } }
+
+@media (min-width: 900px) {
+  .page {
+    grid-template-columns: minmax(280px, 5fr) 9fr;
+    grid-template-areas: "mast stage" "side stage";
+    grid-template-rows: auto 1fr;
+    gap: 28px 56px; padding: 56px 40px 40px;
+  }
+  .mast { gap: 22px; }
+  .side, .page.done .side { padding-bottom: 0; }
+  .issue-no { font-size: 72px; }
+  .goal { font-size: 17px; }
+  .row { font-size: 14.5px; min-height: 36px; grid-template-columns: 52px 1fr; }
+  .row .ln { font-size: 12px; padding-right: 16px; }
+  .dock {
+    position: static; margin: 0; padding: 0; border: 0;
+    background: none; backdrop-filter: none; -webkit-backdrop-filter: none;
+    display: flex; align-items: center; gap: 16px;
+  }
+  .dock-hint { display: none; }
+  .row { padding-right: 16px; }
+  .dock .btn { width: auto; min-width: 220px; }
+  .actions { grid-template-columns: auto auto; justify-content: start; }
+  .actions .btn { width: auto; min-width: 180px; }
+  .stats { grid-template-columns: repeat(4, 1fr); }
+  .toast { bottom: 40px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+}
+</style>
+</head>
+<body>
+<noscript><p style="padding:24px">이 게임은 자바스크립트가 켜져 있어야 해.</p></noscript>
+
+<div class="page" id="page">
+  <header class="mast">
+    <div class="brand"><i></i>하루 한 버그</div>
+    <div class="issue">
+      <div class="issue-no" id="issueNo">#&ndash;</div>
+      <div class="issue-meta"><b id="subject">&nbsp;</b><span id="dateLabel">&nbsp;</span></div>
+    </div>
+    <p class="goal"><span>이 코드가 하려던 일</span><span id="goal" style="all:unset"></span></p>
+    <div class="tries" aria-live="polite">
+      <div class="tries-boxes" id="triesBoxes"></div>
+      <div class="tries-label" id="triesLabel"></div>
+    </div>
+  </header>
+
+  <aside class="side">
+    <ol class="hints" id="hints"></ol>
+    <p class="note" id="testNote" hidden></p>
+  </aside>
+
+  <main class="stage">
+    <section class="code" aria-label="오늘의 코드">
+      <div class="code-head"><b id="langLabel"></b><span id="codeHelp">버그가 있는 줄을 골라</span></div>
+      <div class="code-scroll"><div class="rows" id="rows"></div></div>
+    </section>
+
+    <div class="dock" id="dock">
+      <p class="dock-hint" id="dockHint" hidden></p>
+      <button class="btn" id="submit" disabled>줄을 먼저 골라</button>
+    </div>
+
+    <section class="result" id="result" hidden>
+      <h2 class="verdict" id="verdict"></h2>
+      <div class="diff" id="diff"></div>
+      <p class="explain" id="explain"></p>
+      <div class="actions">
+        <button class="btn accent" id="share">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V6a2 2 0 0 1 2-2h9"/></svg>
+          결과 복사하기
+        </button>
+        <button class="btn ghost" id="next" disabled></button>
+      </div>
+      <dl class="stats" id="stats"></dl>
+    </section>
+  </main>
+</div>
+
+<div class="toast" id="toast" role="status"></div>
+
+<script src="puzzles.js"></script>
+<script>
+(function () {
+  "use strict";
+
+  var MAX_TRIES = 4;
+  var DAY = 864e5;
+  var KST = 9 * 36e5;
+  var EPOCH_DAY = Date.UTC(2026, 10, 17) / DAY; // 2026-11-17 (한국 시간) = 1번 문제
+  var STORE = "bugaday:v1:";
+  var $ = function (id) { return document.getElementById(id); };
+
+  var puzzles = window.PUZZLES;
+  if (!Array.isArray(puzzles) || puzzles.length === 0) {
+    $("page").innerHTML =
+      '<div class="fatal"><h1>문제를 불러오지 못했어</h1>' +
+      "<p>puzzles.js 파일이 index.html 옆에 있는지, 문법 오류가 없는지 확인해 줘.</p></div>";
+    return;
+  }
+
+  // ---------- 오늘이 며칠인지 (한국 시간 기준) ----------
+  var override = null;
+  var m = /[?&]date=(\d{4})-(\d{2})-(\d{2})/.exec(location.search);
+  if (m) override = Date.UTC(+m[1], +m[2] - 1, +m[3]) / DAY;
+  var today = override !== null ? override : Math.floor((Date.now() + KST) / DAY);
+  var issue = today - EPOCH_DAY + 1;
+  var puzzle = puzzles[(((issue - 1) % puzzles.length) + puzzles.length) % puzzles.length];
+  var lines = puzzle.code.split("\n");
+  var dateKey = new Date(today * DAY).toISOString().slice(0, 10);
+
+  // ---------- 저장 ----------
+  function load(key, fallback) {
+    try {
+      var raw = localStorage.getItem(STORE + key);
+      return raw ? JSON.parse(raw) : fallback;
+    } catch (e) { return fallback; }
+  }
+  function save(key, value) {
+    try { localStorage.setItem(STORE + key, JSON.stringify(value)); } catch (e) {}
+  }
+
+  var state = load("day:" + dateKey, null);
+  if (!state || !Array.isArray(state.guesses)) state = { guesses: [], done: false, won: false };
+  state.guesses = state.guesses.filter(function (n) { return n >= 1 && n <= lines.length; }).slice(0, MAX_TRIES);
+  var picked = null;
+
+  // ---------- 색칠 ----------
+  function esc(s) {
+    return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  }
+  var RE = {
+    sql: /(--.*$)|('(?:[^']|'')*')|\b(\d+)\b|\b(SELECT|FROM|WHERE|JOIN|LEFT|RIGHT|INNER|ON|AND|OR|NOT|IN|IS|NULL|GROUP|ORDER|BY|AS|DESC|ASC|LIMIT|HAVING|COUNT|SUM|AVG|MIN|MAX|DISTINCT)\b/g,
+    c: /(\/\/.*$)|("(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*')|\b(\d+)\b|\b(int|char|void|const|double|size_t|struct|static|return|if|else|for|while|sizeof|NULL|Account|pthread_t|pthread_mutex_t|pthread_cond_t)\b/g,
+  };
+  function paint(line, lang) {
+    var re = RE[lang] || RE.c;
+    re.lastIndex = 0;
+    var out = "", last = 0, t;
+    while ((t = re.exec(line))) {
+      var cls = t[1] ? "c" : t[2] ? "s" : t[3] ? "n" : "k";
+      out += esc(line.slice(last, t.index)) + '<span class="t-' + cls + '">' + esc(t[0]) + "</span>";
+      last = re.lastIndex;
+    }
+    return out + esc(line.slice(last));
+  }
+
+  // ---------- 그리기 ----------
+  function misses() { return state.guesses.filter(function (n) { return n !== puzzle.bug; }).length; }
+
+  function renderHead() {
+    $("issueNo").textContent = "#" + issue;
+    $("subject").textContent = puzzle.subject;
+    var d = new Date(today * DAY);
+    $("dateLabel").textContent = (d.getUTCMonth() + 1) + "월 " + d.getUTCDate() + "일";
+    $("goal").textContent = puzzle.goal;
+    $("langLabel").textContent = puzzle.lang === "sql" ? "SQL" : "C";
+    document.title = "하루 한 버그 #" + issue;
+    if (override !== null) {
+      $("testNote").hidden = false;
+      $("testNote").textContent = "미리보기 모드야. " + dateKey + " 문제를 보고 있고, 통계에는 반영되지 않아.";
+    }
+  }
+
+  function renderRows() {
+    var html = "";
+    lines.forEach(function (line, i) {
+      var n = i + 1;
+      if (line.trim() === "") {
+        html += '<div class="row blank" style="--i:' + i + '"><span class="ln">' + n + "</span><code></code></div>";
+      } else {
+        html += '<button class="row" type="button" data-line="' + n + '" style="--i:' + i +
+          '" aria-label="' + n + '번 줄"><span class="ln">' + n + "</span><code>" +
+          paint(line, puzzle.lang) + "</code></button>";
+      }
+    });
+    $("rows").innerHTML = html;
+  }
+
+  function rowOf(n) { return $("rows").querySelector('[data-line="' + n + '"]'); }
+
+  function renderState(popIndex) {
+    // 시도 칸
+    var boxes = "";
+    for (var i = 0; i < MAX_TRIES; i++) {
+      var g = state.guesses[i];
+      var cls = g === undefined ? "" : g === puzzle.bug ? "hit" : "miss";
+      if (i === popIndex) cls += " pop";
+      boxes += '<i class="' + cls + '"></i>';
+    }
+    $("triesBoxes").innerHTML = boxes;
+    var left = MAX_TRIES - state.guesses.length;
+    $("triesLabel").textContent = state.done
+      ? (state.won ? state.guesses.length + "번 만에 찾음" : "기회를 다 썼어")
+      : "기회 " + left + "번 남음";
+
+    // 줄 상태
+    $("rows").querySelectorAll("button.row").forEach(function (row) {
+      var n = +row.dataset.line;
+      var guessed = state.guesses.indexOf(n) !== -1;
+      var isBug = n === puzzle.bug;
+      row.classList.toggle("miss", guessed && !isBug);
+      row.classList.toggle("hit", isBug && state.done);
+      row.classList.toggle("picked", !state.done && picked === n);
+      row.disabled = state.done || guessed;
+      row.setAttribute("aria-pressed", picked === n ? "true" : "false");
+    });
+
+    // 힌트
+    var open = state.done ? puzzle.hints.length : Math.min(misses(), puzzle.hints.length);
+    var names = ["증상", "종류", "단서"];
+    $("hints").innerHTML = puzzle.hints.map(function (h, i) {
+      return i < open
+        ? '<li class="open"><span class="tag">' + names[i] + "</span><p>" + esc(h) + "</p></li>"
+        : '<li class="locked"><span class="tag">' + names[i] + "</span><p>" +
+          (i === open ? "한 번 틀리면 열려" : "잠김") + "</p></li>";
+    }).join("");
+
+    // 폰에서는 힌트 목록이 코드 아래에 있으므로, 방금 열린 힌트를 제출 버튼 위에도 보여준다
+    var dh = $("dockHint");
+    dh.hidden = open === 0 || state.done;
+    if (!dh.hidden) dh.innerHTML = "<b>힌트 " + open + "</b>" + esc(puzzle.hints[open - 1]);
+
+    // 제출 버튼
+    var btn = $("submit");
+    btn.disabled = picked === null;
+    btn.textContent = picked === null ? "줄을 먼저 골라" : picked + "번 줄로 제출";
+    $("dock").hidden = state.done;
+    $("page").classList.toggle("done", state.done);
+    $("codeHelp").textContent = state.done ? "버그는 " + puzzle.bug + "번 줄" : "버그가 있는 줄을 골라";
+
+    if (state.done) renderResult();
+  }
+
+  function renderResult() {
+    $("result").hidden = false;
+    var v = $("verdict");
+    if (state.won) {
+      var n = state.guesses.length;
+      v.innerHTML = (n === 1 ? "한 번에 찾았어" : n + "번 만에 찾았어") +
+        "<small>" + puzzle.bug + "번 줄이 버그였어.</small>";
+    } else {
+      v.innerHTML = "오늘은 놓쳤어<small>버그는 " + puzzle.bug + "번 줄에 있었어.</small>";
+    }
+    // 두 줄이 공통으로 가진 들여쓰기는 떼고 보여준다
+    var before = lines[puzzle.bug - 1], after = puzzle.fix;
+    var cut = Math.min(before.search(/\S|$/), after.search(/\S|$/));
+    $("diff").innerHTML =
+      '<div class="del"><span>-</span><code>' + paint(before.slice(cut), puzzle.lang) + "</code></div>" +
+      '<div class="add"><span>+</span><code>' + paint(after.slice(cut), puzzle.lang) + "</code></div>";
+    $("explain").textContent = puzzle.explain;
+
+    var s = load("stats", { played: 0, won: 0, streak: 0, best: 0 });
+    var rate = s.played ? Math.round((s.won / s.played) * 100) : 0;
+    $("stats").innerHTML =
+      "<div><dt>플레이</dt><dd>" + s.played + "<small>판</small></dd></div>" +
+      "<div><dt>정답률</dt><dd>" + rate + "<small>%</small></dd></div>" +
+      "<div><dt>연속 정답</dt><dd>" + s.streak + "<small>일</small></dd></div>" +
+      "<div><dt>최고 연속</dt><dd>" + s.best + "<small>일</small></dd></div>";
+    tick();
+  }
+
+  // ---------- 진행 ----------
+  function finish(won) {
+    state.done = true;
+    state.won = won;
+    if (override !== null) return;
+    var s = load("stats", { played: 0, won: 0, streak: 0, best: 0, lastWin: null, lastDay: null });
+    if (s.lastDay === today) return; // 같은 날 두 번 세지 않는다
+    s.played += 1;
+    if (won) {
+      s.won += 1;
+      s.streak = s.lastWin === today - 1 ? s.streak + 1 : 1;
+      s.best = Math.max(s.best, s.streak);
+      s.lastWin = today;
+    } else {
+      s.streak = 0;
+    }
+    s.lastDay = today;
+    save("stats", s);
+  }
+
+  function submit() {
+    if (state.done || picked === null) return;
+    var n = picked;
+    picked = null;
+    state.guesses.push(n);
+    var hit = n === puzzle.bug;
+    if (hit) finish(true);
+    else if (state.guesses.length >= MAX_TRIES) finish(false);
+    save("day:" + dateKey, state);
+    renderState(state.guesses.length - 1);
+
+    // 틀린 줄은 흔들고, 정답 줄은(맞혔거나 기회를 다 써서 공개될 때) 반짝인다
+    var missRow = hit ? null : rowOf(n);
+    if (missRow) missRow.classList.add("shake");
+    var bugRow = state.done ? rowOf(puzzle.bug) : null;
+    if (bugRow) bugRow.classList.add("flash");
+    if (state.done) {
+      setTimeout(function () {
+        $("result").scrollIntoView({ behavior: "smooth", block: "start" });
+      }, 500);
+    }
+  }
+
+  $("rows").addEventListener("click", function (e) {
+    var row = e.target.closest("button.row");
+    if (!row || row.disabled || state.done) return;
+    var n = +row.dataset.line;
+    picked = picked === n ? null : n;
+    renderState();
+  });
+  $("submit").addEventListener("click", submit);
+
+  // ---------- 공유 ----------
+  function shareText() {
+    var squares = state.guesses.map(function (n) {
+      return n === puzzle.bug ? "🟩" : "🟥";
+    }).join("");
+    var score = (state.won ? state.guesses.length : "X") + "/" + MAX_TRIES;
+    var url = location.protocol === "file:" ? "" : "\n" + location.origin + location.pathname;
+    return "하루 한 버그 #" + issue + " " + score + "\n" + squares + url;
+  }
+
+  var toastTimer = null;
+  function toast(msg) {
+    var t = $("toast");
+    t.textContent = msg;
+    t.classList.add("on");
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { t.classList.remove("on"); }, 2200);
+  }
+
+  function copyFallback(text) {
+    var ta = document.createElement("textarea");
+    ta.value = text;
+    ta.setAttribute("readonly", "");
+    ta.style.cssText = "position:fixed;top:0;left:0;opacity:0";
+    document.body.appendChild(ta);
+    ta.select();
+    var ok = false;
+    try { ok = document.execCommand("copy"); } catch (e) {}
+    document.body.removeChild(ta);
+    return ok;
+  }
+
+  $("share").addEventListener("click", function () {
+    var text = shareText();
+    var done = function (ok) { toast(ok ? "복사했어. 단톡에 붙여넣어" : "복사가 막혔어. 직접 길게 눌러 복사해 줘"); };
+    if (navigator.clipboard && window.isSecureContext) {
+      navigator.clipboard.writeText(text).then(function () { done(true); }, function () { done(copyFallback(text)); });
+    } else {
+      done(copyFallback(text));
+    }
+  });
+
+  // ---------- 다음 문제까지 ----------
+  function two(n) { return (n < 10 ? "0" : "") + n; }
+  function tick() {
+    var btn = $("next");
+    if (override !== null) { btn.textContent = "미리보기 모드"; return; }
+    var left = (today + 1) * DAY - (Date.now() + KST);
+    if (left <= 0) {
+      btn.disabled = false;
+      btn.textContent = "새 문제 열렸어. 풀러 가기";
+      return;
+    }
+    var s = Math.floor(left / 1000);
+    btn.textContent = "다음 문제까지 " + two(Math.floor(s / 3600)) + ":" + two(Math.floor((s % 3600) / 60)) + ":" + two(s % 60);
+  }
+  $("next").addEventListener("click", function () { location.reload(); });
+  setInterval(function () { if (state.done) tick(); }, 1000);
+
+  // ---------- 시작 ----------
+  renderHead();
+  renderRows();
+  renderState();
+})();
+</script>
+</body>
+</html>
