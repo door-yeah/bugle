@@ -180,6 +180,7 @@ button { font: inherit; color: inherit; }
   font-size: 11px; user-select: none;
 }
 .row code { font: inherit; white-space: pre; }
+.row code, .diff code { font-variant-ligatures: none; font-feature-settings: "liga" 0, "calt" 0; }
 .row.blank { cursor: default; min-height: 18px; }
 @media (hover: hover) { .row:not(.blank):not(:disabled):hover { background: var(--pick-wash); } }
 .row:not(:disabled):active { transform: scale(0.992); }
