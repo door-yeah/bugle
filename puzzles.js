@@ -18,7 +18,7 @@ window.PUZZLES = [
   {
     subject: "C 포인터",
     lang: "c",
-    goal: "길이 n인 배열에서 가장 큰 값을 돌려준다.",
+    goal: "길이 n인 배열 a에서 가장 큰 값을 돌려준다. n은 항상 1 이상이다.",
     code: String.raw`int max_of(const int *a, int n) {
     int best = a[0];
     for (int i = 1; i <= n; i++) {
@@ -179,7 +179,7 @@ ORDER BY paid DESC;`,
   {
     subject: "C 포인터",
     lang: "c",
-    goal: "점수 개수를 입력받고, 그만큼 점수를 읽어 배열에 채운다.",
+    goal: "먼저 점수 개수 n을 입력받고, 이어서 점수 n개를 읽어 scores 배열에 채운다. scores는 max칸짜리라서 n이 max보다 크면 max개까지만 읽는다. 실제로 읽은 개수를 돌려준다.",
     code: String.raw`int read_scores(int *scores, int max) {
     int n;
     printf("how many? ");
@@ -267,7 +267,7 @@ int main(void) {
   {
     subject: "C 포인터",
     lang: "c",
-    goal: "문자열 s에 들어 있는 모음의 개수를 세어 *n에 담는다.",
+    goal: "문자열 s에 들어 있는 소문자 모음(a, e, i, o, u)의 개수를 세어 *n에 담는다.",
     code: String.raw`void vowels(const char *s, int *n) {
     *n = 0;
     for (; *s != '\0'; s++) {
