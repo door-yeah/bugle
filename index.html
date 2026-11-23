@@ -330,6 +330,13 @@ button { font: inherit; color: inherit; }
 .rules p { margin: 10px 14px 0; }
 .rules p:last-child { margin-bottom: 12px; }
 .rules p b { color: var(--ink); font-weight: 600; }
+.brand { flex-wrap: wrap; }
+.practice-link {
+  margin-left: auto; font-size: 12.5px; font-weight: 600; color: var(--accent);
+  text-decoration: none; padding: 4px 0;
+}
+.practice-link:hover, .more:hover { text-decoration: underline; }
+.more { font-size: 14px; font-weight: 600; color: var(--accent); text-decoration: none; }
 .kinds h2 { margin: 6px 0 8px; font-size: 12px; font-weight: 600; letter-spacing: 0.04em; color: var(--ink-3); }
 .kinds ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
 .kinds li {
@@ -414,7 +421,7 @@ button { font: inherit; color: inherit; }
 
 <div class="page" id="page">
   <header class="mast">
-    <div class="brand"><i></i><b>버글</b><span>하루 한 버그</span></div>
+    <div class="brand"><i></i><b>버글</b><span>하루 한 버그</span><a class="practice-link" id="practiceLink" href="?practice" hidden>심심하면 연습하기</a></div>
     <div class="issue">
       <div class="issue-no" id="issueNo">#&ndash;</div>
       <div class="issue-meta"><b id="subject">&nbsp;</b><span id="dateLabel">&nbsp;</span></div>
@@ -487,6 +494,7 @@ button { font: inherit; color: inherit; }
         </button>
         <button class="btn ghost" id="next" disabled></button>
       </div>
+      <a class="more" id="more" href="?practice" hidden></a>
       <dl class="stats" id="stats"></dl>
     </section>
   </main>
@@ -543,10 +551,28 @@ button { font: inherit; color: inherit; }
   }
   function at(list, i) { return list[((i % list.length) + list.length) % list.length]; }
   var chosen = pick(today);
+
+  // 연습 모드(?practice 또는 ?practice=번호): 날짜와 상관없이 알고리즘 문제를 몇 개든 푼다.
+  // 기록은 따로 남고 통계와 연속 기록에는 들어가지 않는다.
+  var practice = null;
+  var pm = /[?&]practice(?:=(\d+))?/.exec(location.search);
+  if (pm && algos.length) {
+    practice = pm[1] ? +pm[1] : 0;
+    if (!(practice >= 1 && practice <= algos.length)) {
+      practice = 1;
+      for (var q = 1; q <= algos.length; q++) {
+        var ps = load("practice:" + q, null);
+        if (!ps || !ps.done) { practice = q; break; }
+      }
+    }
+    chosen = { kind: "algo", index: practice - 1 };
+  }
+
   var isAlgo = chosen.kind === "algo";
   var puzzle = isAlgo ? at(algos, chosen.index) : at(puzzles, chosen.index);
   var lines = puzzle.code.split("\n");
   var dateKey = new Date(today * DAY).toISOString().slice(0, 10);
+  var stateKey = practice ? "practice:" + practice : "day:" + dateKey;
 
   // 고치기 보기: 0번이 정답, 1·2번이 오답. 섞는 순서는 문제 번호로 정해서 모두에게 같다.
   var options = isAlgo ? [] : [{ code: puzzle.fix, why: "" }].concat(puzzle.wrong || []);
@@ -565,7 +591,7 @@ button { font: inherit; color: inherit; }
 
   // 상태: guesses(고른 줄들), findDone(찾기 끝), found(줄을 맞혔나), fix(고른 보기, 0이 정답),
   //       cex(반례 시도들), done(전부 끝)
-  var state = load("day:" + dateKey, null);
+  var state = load(stateKey, null);
   if (!state || !Array.isArray(state.guesses)) {
     state = { guesses: [], findDone: false, found: false, fix: null, cex: [], done: false };
   } else if (state.findDone === undefined) {
@@ -602,11 +628,13 @@ button { font: inherit; color: inherit; }
       ["락 없는 접근", "공유 변수를 락 밖에서 읽거나 씀"],
     ],
     "알고리즘": [
-      ["경계 조건", "반복 조건의 <와 <=, 시작과 끝 인덱스"],
+      ["경계 조건", "<와 <=, 이하와 미만, 시작과 끝 인덱스"],
       ["초기값", "최댓값, 최솟값, 합을 잘못된 값으로 시작함"],
       ["정수 오버플로", "계산 도중 int 범위를 넘김"],
-      ["같은 원소 중복", "서로 달라야 할 두 원소로 같은 것을 씀"],
-      ["비교와 정렬", "비교 함수나 정렬 기준이 틀림"],
+      ["같은 값 처리", "같은 원소를 두 번 쓰거나, 같은 값이 여럿일 때 규칙을 어김"],
+      ["비교와 정렬", "비교 함수나 정렬·선택 기준이 틀림"],
+      ["나머지 연산", "음수에 %를 쓰면 결과도 음수가 됨"],
+      ["판정 조건", "규칙 하나를 빠뜨리거나 거꾸로 적음"],
     ],
   };
   function renderRules() {
@@ -650,18 +678,21 @@ button { font: inherit; color: inherit; }
   function stage2Won() { return isAlgo ? cexWon() : fixed(); }
 
   function renderHead() {
-    $("issueNo").textContent = "#" + issue;
-    $("subject").textContent = puzzle.subject;
+    $("issueNo").textContent = "#" + (practice || issue);
+    $("subject").textContent = practice ? "알고리즘 연습" : puzzle.subject;
     var d = new Date(today * DAY);
-    $("dateLabel").textContent = (d.getUTCMonth() + 1) + "월 " + d.getUTCDate() + "일";
+    $("dateLabel").textContent = practice
+      ? algos.length + "문제 중 " + practice + "번째"
+      : (d.getUTCMonth() + 1) + "월 " + d.getUTCDate() + "일";
     $("goal").textContent = puzzle.goal;
     if (isAlgo) {
-      $("goalLabel").textContent = "오늘의 알고리즘 문제";
+      $("goalLabel").textContent = practice ? "연습 문제" : "오늘의 알고리즘 문제";
       renderProblem();
     }
     $("langLabel").textContent = puzzle.lang === "sql" ? "SQL" : "C";
-    document.title = "버글 #" + issue;
-    if (override !== null) {
+    document.title = practice ? "버글 연습 #" + practice : "버글 #" + issue;
+    $("practiceLink").hidden = !algos.length || !!practice;
+    if (override !== null && !practice) {
       $("testNote").hidden = false;
       $("testNote").textContent = "미리보기 모드야. " + dateKey + " 문제를 보고 있고, 통계에는 반영되지 않아.";
     }
@@ -767,6 +798,12 @@ button { font: inherit; color: inherit; }
         if (v < lo || v > hi) t.fail(raw + " 은(는) 범위(" + lo.toLocaleString() + " ~ " + hi.toLocaleString() + ")를 벗어나.");
         return v;
       },
+      word: function (max) {
+        if (k >= tok.length) t.fail("입력이 형식보다 짧아.");
+        var w = tok[k++];
+        if (w.length > max) t.fail("문자열이 너무 길어.");
+        return w;
+      },
       ints: function (n, lo, hi) {
         if (n > 1000) t.fail("여기서는 수를 1000개까지만 넣을 수 있어.");
         var r = [];
@@ -867,7 +904,7 @@ button { font: inherit; color: inherit; }
     var second = isAlgo ? "반례" : "고치기";
     if (state.found && stage2Won()) {
       head = (n === 1 ? "한 번에 찾고 " : n + "번 만에 찾고 ") + (isAlgo ? "반례까지 만들었어" : "제대로 고쳤어");
-      sub = "오늘 버그는 완전히 잡았어.";
+      sub = practice ? "이 문제의 버그는 완전히 잡았어." : "오늘 버그는 완전히 잡았어.";
     } else if (state.found && hasStage2) {
       head = "찾긴 했는데 " + second + "에서 막혔어";
       sub = "어디가 틀렸는지는 알았으니 절반은 온 거야.";
@@ -900,6 +937,11 @@ button { font: inherit; color: inherit; }
       "<div><dt>완전 정답률</dt><dd>" + rate + "<small>%</small></dd></div>" +
       "<div><dt>연속 정답</dt><dd>" + s.streak + "<small>일</small></dd></div>" +
       "<div><dt>최고 연속</dt><dd>" + s.best + "<small>일</small></dd></div>";
+    var more = $("more");
+    more.hidden = !algos.length;
+    more.textContent = practice ? "오늘의 문제로 돌아가기" : "아직 심심하면? 알고리즘 연습 문제 풀기";
+    more.href = practice ? location.pathname : "?practice";
+    $("stats").hidden = !!practice;
     tick();
   }
 
@@ -907,7 +949,7 @@ button { font: inherit; color: inherit; }
   // 찾기와 고치기를 둘 다 맞혀야 통계에서 정답으로 센다
   function finish() {
     state.done = true;
-    if (override !== null) return;
+    if (override !== null || practice) return;
     var won = state.found && (hasStage2 ? stage2Won() : true);
     var s = load("stats", { played: 0, won: 0, streak: 0, best: 0, lastWin: null, lastDay: null });
     if (s.lastDay === today) return; // 같은 날 두 번 세지 않는다
@@ -939,7 +981,7 @@ button { font: inherit; color: inherit; }
       state.found = hit;
       if (!hasStage2) finish();
     }
-    save("day:" + dateKey, state);
+    save(stateKey, state);
     renderState(state.guesses.length - 1);
 
     // 틀린 줄은 흔들고, 정답 줄은(맞혔거나 기회를 다 써서 공개될 때) 반짝인다
@@ -955,7 +997,7 @@ button { font: inherit; color: inherit; }
     state.fix = optPicked;
     optPicked = null;
     finish();
-    save("day:" + dateKey, state);
+    save(stateKey, state);
     renderState("fix");
     scrollTo("fix");
   }
@@ -976,7 +1018,7 @@ button { font: inherit; color: inherit; }
     var got = puzzle.judge.buggy(data), want = puzzle.judge.correct(data);
     state.cex.push({ input: text.trim(), got: got, want: want, ok: got !== want });
     if (cexWon() || state.cex.length >= CEX_TRIES) finish();
-    save("day:" + dateKey, state);
+    save(stateKey, state);
     renderState("cex");
     if (state.done) scrollTo("cex");
   }
@@ -1010,7 +1052,8 @@ button { font: inherit; color: inherit; }
     var second = !hasStage2 ? ""
       : isAlgo ? "\n반례 " + state.cex.map(function (c) { return c.ok ? G : R; }).join("")
       : "\n고치기 " + (fixed() ? G : R);
-    return "버글 #" + issue + (isAlgo ? " 알고리즘" : "") + "\n찾기 " + find + second + url;
+    var title = practice ? "버글 연습 #" + practice : "버글 #" + issue + (isAlgo ? " 알고리즘" : "");
+    return title + "\n찾기 " + find + second + url;
   }
 
   var toastTimer = null;
@@ -1049,6 +1092,11 @@ button { font: inherit; color: inherit; }
   function two(n) { return (n < 10 ? "0" : "") + n; }
   function tick() {
     var btn = $("next");
+    if (practice) {
+      btn.disabled = false;
+      btn.textContent = practice < algos.length ? "다음 연습 문제" : "처음 연습 문제로";
+      return;
+    }
     if (override !== null) { btn.textContent = "미리보기 모드"; return; }
     var left = (today + 1) * DAY - (Date.now() + KST);
     if (left <= 0) {
@@ -1059,7 +1107,10 @@ button { font: inherit; color: inherit; }
     var s = Math.floor(left / 1000);
     btn.textContent = "다음 문제까지 " + two(Math.floor(s / 3600)) + ":" + two(Math.floor((s % 3600) / 60)) + ":" + two(s % 60);
   }
-  $("next").addEventListener("click", function () { location.reload(); });
+  $("next").addEventListener("click", function () {
+    if (practice) location.href = "?practice=" + (practice % algos.length + 1);
+    else location.reload();
+  });
   setInterval(function () { if (state.done) tick(); }, 1000);
 
   // ---------- 시작 ----------
