@@ -279,6 +279,42 @@ button { font: inherit; color: inherit; }
 .opt.wrong { border-color: var(--miss); background: var(--miss-wash); }
 .opt.wrong .key { color: var(--miss); }
 @media (hover: hover) { .opt:not(:disabled):not(.picked):hover { background: var(--pick-wash); } }
+.problem {
+  display: flex; flex-direction: column; gap: 12px;
+  padding: 16px; border: 1px solid var(--line); border-radius: 14px; background: var(--surface);
+  font-size: 14.5px; line-height: 1.65;
+}
+.problem p { margin: 0; }
+.problem h3 { margin: 4px 0 -6px; font-size: 12px; font-weight: 600; letter-spacing: 0.04em; color: var(--ink-3); }
+.problem .ex { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.problem .ex div { min-width: 0; }
+.problem .ex b { display: block; font-size: 12px; font-weight: 600; color: var(--ink-3); margin-bottom: 4px; }
+.problem pre, .cex-log pre {
+  margin: 0; padding: 8px 10px; border-radius: 8px; background: var(--line-soft);
+  font-family: var(--mono); font-size: 12.5px; line-height: 1.5; white-space: pre-wrap; overflow-wrap: anywhere;
+}
+.cex-help { margin: 0; font-size: 14px; color: var(--ink-2); line-height: 1.6; }
+.cex-field { display: flex; flex-direction: column; gap: 6px; }
+.cex-field span { font-size: 12px; font-weight: 600; color: var(--ink-3); letter-spacing: 0.04em; }
+.cex-field textarea {
+  width: 100%; resize: vertical; min-height: 84px; padding: 10px 12px;
+  border: 1px solid var(--line); border-radius: 10px; background: var(--surface); color: var(--ink);
+  font-family: var(--mono); font-size: 16px; line-height: 1.5;
+}
+.cex-field textarea:focus { outline: 2px solid var(--accent); outline-offset: -1px; border-color: transparent; }
+.cex-field em { font-style: normal; font-size: 13px; color: var(--miss); min-height: 1px; }
+.cex-log { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.cex-log li {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding: 10px 12px;
+  border: 1px solid var(--line); border-radius: 12px; background: var(--surface); font-size: 13px;
+}
+.cex-log li > p { grid-column: 1 / -1; margin: 0; font-weight: 600; }
+.cex-log li.ok { border-color: var(--accent); background: var(--accent-wash); }
+.cex-log li.ok > p { color: var(--accent); }
+.cex-log li.no > p { color: var(--miss); }
+.cex-log li div { min-width: 0; }
+.cex-log li div b { display: block; font-size: 12px; font-weight: 600; color: var(--ink-3); margin-bottom: 4px; }
+.cex-log li .in { grid-column: 1 / -1; }
 .explain { margin: 0; font-size: 15px; line-height: 1.7; color: var(--ink-2); max-width: 60ch; }
 .actions { display: grid; grid-template-columns: 1fr; gap: 10px; }
 .stats {
@@ -360,7 +396,7 @@ button { font: inherit; color: inherit; }
       <div class="issue-no" id="issueNo">#&ndash;</div>
       <div class="issue-meta"><b id="subject">&nbsp;</b><span id="dateLabel">&nbsp;</span></div>
     </div>
-    <p class="goal"><span>이 코드가 하려던 일</span><span id="goal" style="all:unset"></span></p>
+    <p class="goal"><span id="goalLabel">이 코드가 하려던 일</span><span id="goal" style="all:unset"></span></p>
     <div class="tries" aria-live="polite">
       <div class="tries-boxes" id="triesBoxes"></div>
       <div class="tries-label" id="triesLabel"></div>
@@ -373,6 +409,8 @@ button { font: inherit; color: inherit; }
   </aside>
 
   <main class="stage">
+    <section class="problem" id="problem" hidden></section>
+
     <section class="code" aria-label="오늘의 코드">
       <div class="code-head"><b id="langLabel"></b><span id="codeHelp">버그가 있는 줄을 골라</span></div>
       <div class="code-scroll"><div class="rows" id="rows"></div></div>
@@ -384,6 +422,17 @@ button { font: inherit; color: inherit; }
       <div class="opts" id="opts"></div>
     </section>
 
+    <section class="fix" id="cex" hidden>
+      <h2 class="fix-title"><span>2단계: 반례 찾기</span><b id="cexLead"></b></h2>
+      <p class="cex-help" id="cexHelp"></p>
+      <label class="cex-field" id="cexField">
+        <span>입력</span>
+        <textarea id="cexInput" rows="3" spellcheck="false" autocapitalize="off" autocomplete="off" placeholder="예제와 같은 형식으로 입력"></textarea>
+        <em id="cexError" role="alert"></em>
+      </label>
+      <ol class="cex-log" id="cexLog"></ol>
+    </section>
+
     <div class="dock" id="dock">
       <p class="dock-hint" id="dockHint" hidden></p>
       <button class="btn" id="submit" disabled>줄을 먼저 골라</button>
@@ -391,6 +440,7 @@ button { font: inherit; color: inherit; }
 
     <section class="result" id="result" hidden>
       <h2 class="verdict" id="verdict"></h2>
+      <div class="diff" id="resultDiff" hidden></div>
       <p class="explain" id="explain"></p>
       <div class="actions">
         <button class="btn accent" id="share">
@@ -407,6 +457,7 @@ button { font: inherit; color: inherit; }
 <div class="toast" id="toast" role="status"></div>
 
 <script src="puzzles.js"></script>
+<script src="algos.js"></script>
 <script>
 (function () {
   "use strict";
@@ -420,7 +471,10 @@ button { font: inherit; color: inherit; }
   var ORDERS = [[0, 1, 2], [1, 2, 0], [2, 0, 1], [1, 0, 2], [0, 2, 1], [2, 1, 0]];
   var $ = function (id) { return document.getElementById(id); };
 
+  var CEX_TRIES = 3;
+  var ALGO_START = Date.UTC(2026, 10, 24) / DAY; // 2026-11-24 화요일부터 알고리즘 문제가 섞인다
   var puzzles = window.PUZZLES;
+  var algos = Array.isArray(window.ALGOS) ? window.ALGOS : [];
   if (!Array.isArray(puzzles) || puzzles.length === 0) {
     $("page").innerHTML =
       '<div class="fatal"><h1>문제를 불러오지 못했어</h1>' +
@@ -434,12 +488,30 @@ button { font: inherit; color: inherit; }
   if (m) override = Date.UTC(+m[1], +m[2] - 1, +m[3]) / DAY;
   var today = override !== null ? override : Math.floor((Date.now() + KST) / DAY);
   var issue = today - EPOCH_DAY + 1;
-  var puzzle = puzzles[(((issue - 1) % puzzles.length) + puzzles.length) % puzzles.length];
+
+  // 화요일(2)과 금요일(5)은 알고리즘 문제. 나머지 요일은 일반 문제를 순서대로 낸다.
+  // 알고리즘이 섞이기 전 날짜들은 예전 순서를 그대로 지켜서, 이미 푼 기록과 어긋나지 않게 한다.
+  function isAlgoDay(d) {
+    var w = new Date(d * DAY).getUTCDay();
+    return algos.length > 0 && d >= ALGO_START && (w === 2 || w === 5);
+  }
+  function pick(d) {
+    if (d < ALGO_START) return { kind: "bug", index: d - EPOCH_DAY };
+    var normal = ALGO_START - EPOCH_DAY, algo = 0;
+    for (var k = ALGO_START; k < d; k++) {
+      if (isAlgoDay(k)) algo++; else normal++;
+    }
+    return isAlgoDay(d) ? { kind: "algo", index: algo } : { kind: "bug", index: normal };
+  }
+  function at(list, i) { return list[((i % list.length) + list.length) % list.length]; }
+  var chosen = pick(today);
+  var isAlgo = chosen.kind === "algo";
+  var puzzle = isAlgo ? at(algos, chosen.index) : at(puzzles, chosen.index);
   var lines = puzzle.code.split("\n");
   var dateKey = new Date(today * DAY).toISOString().slice(0, 10);
 
   // 고치기 보기: 0번이 정답, 1·2번이 오답. 섞는 순서는 문제 번호로 정해서 모두에게 같다.
-  var options = [{ code: puzzle.fix, why: "" }].concat(puzzle.wrong || []);
+  var options = isAlgo ? [] : [{ code: puzzle.fix, why: "" }].concat(puzzle.wrong || []);
   var order = ORDERS[((issue % 6) + 6) % 6].filter(function (i) { return i < options.length; });
 
   // ---------- 저장 ----------
@@ -453,16 +525,19 @@ button { font: inherit; color: inherit; }
     try { localStorage.setItem(STORE + key, JSON.stringify(value)); } catch (e) {}
   }
 
-  // 상태: guesses(고른 줄들), findDone(찾기 끝), found(줄을 맞혔나), fix(고른 보기, 0이 정답), done(전부 끝)
+  // 상태: guesses(고른 줄들), findDone(찾기 끝), found(줄을 맞혔나), fix(고른 보기, 0이 정답),
+  //       cex(반례 시도들), done(전부 끝)
   var state = load("day:" + dateKey, null);
   if (!state || !Array.isArray(state.guesses)) {
-    state = { guesses: [], findDone: false, found: false, fix: null, done: false };
+    state = { guesses: [], findDone: false, found: false, fix: null, cex: [], done: false };
   } else if (state.findDone === undefined) {
     // 고치기 단계가 생기기 전에 저장된 기록: 찾기 결과는 살리고 고치기부터 이어서 한다
     state = { guesses: state.guesses, findDone: !!state.done, found: !!state.won, fix: null, done: false };
   }
   state.guesses = state.guesses.filter(function (n) { return n >= 1 && n <= lines.length; }).slice(0, MAX_TRIES);
-  if (options.length < 2 && state.findDone) state.done = true;
+  if (!Array.isArray(state.cex)) state.cex = [];
+  var hasStage2 = isAlgo ? !!puzzle.judge : options.length >= 2;
+  if (!hasStage2 && state.findDone) state.done = true;
   var picked = null;    // 찾기 단계에서 고른 줄
   var optPicked = null; // 고치기 단계에서 고른 보기
 
@@ -472,7 +547,7 @@ button { font: inherit; color: inherit; }
   }
   var RE = {
     sql: /(--.*$)|('(?:[^']|'')*')|\b(\d+)\b|\b(SELECT|FROM|WHERE|JOIN|LEFT|RIGHT|INNER|ON|AND|OR|NOT|IN|IS|NULL|GROUP|ORDER|BY|AS|DESC|ASC|LIMIT|HAVING|COUNT|SUM|AVG|MIN|MAX|DISTINCT)\b/g,
-    c: /(\/\/.*$)|("(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*')|\b(\d+)\b|\b(int|char|void|const|double|size_t|struct|static|return|if|else|for|while|sizeof|NULL|Account|pthread_t|pthread_mutex_t|pthread_cond_t)\b/g,
+    c: /(\/\/.*$|#include.*$)|("(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*')|\b(\d+)\b|\b(int|long|char|void|const|double|size_t|struct|static|return|if|else|for|while|break|sizeof|NULL|Account|pthread_t|pthread_mutex_t|pthread_cond_t)\b/g,
   };
   function paint(line, lang) {
     var re = RE[lang] || RE.c;
@@ -489,6 +564,8 @@ button { font: inherit; color: inherit; }
   // ---------- 그리기 ----------
   function misses() { return state.guesses.filter(function (n) { return n !== puzzle.bug; }).length; }
   function fixed() { return state.fix === 0; }
+  function cexWon() { return state.cex.some(function (c) { return c.ok; }); }
+  function stage2Won() { return isAlgo ? cexWon() : fixed(); }
 
   function renderHead() {
     $("issueNo").textContent = "#" + issue;
@@ -496,12 +573,30 @@ button { font: inherit; color: inherit; }
     var d = new Date(today * DAY);
     $("dateLabel").textContent = (d.getUTCMonth() + 1) + "월 " + d.getUTCDate() + "일";
     $("goal").textContent = puzzle.goal;
+    if (isAlgo) {
+      $("goalLabel").textContent = "오늘의 알고리즘 문제";
+      renderProblem();
+    }
     $("langLabel").textContent = puzzle.lang === "sql" ? "SQL" : "C";
     document.title = "버글 #" + issue;
     if (override !== null) {
       $("testNote").hidden = false;
       $("testNote").textContent = "미리보기 모드야. " + dateKey + " 문제를 보고 있고, 통계에는 반영되지 않아.";
     }
+  }
+
+  function renderProblem() {
+    var pr = puzzle.problem;
+    if (!pr) return;
+    var ex = (pr.examples || []).map(function (e, i) {
+      return '<div class="ex"><div><b>예제 입력 ' + (i + 1) + "</b><pre>" + esc(e.in) + "</pre></div>" +
+        "<div><b>예제 출력 " + (i + 1) + "</b><pre>" + esc(e.out) + "</pre></div></div>";
+    }).join("");
+    $("problem").innerHTML =
+      "<p>" + esc(pr.text) + "</p>" +
+      "<h3>입력</h3><p>" + esc(pr.input) + "</p>" +
+      "<h3>출력</h3><p>" + esc(pr.output) + "</p>" + ex;
+    $("problem").hidden = false;
   }
 
   function renderRows() {
@@ -556,6 +651,51 @@ button { font: inherit; color: inherit; }
     }).join("");
   }
 
+  function renderCex() {
+    var sec = $("cex");
+    sec.hidden = !isAlgo || !state.findDone || !puzzle.judge;
+    if (sec.hidden) return;
+    var left = CEX_TRIES - state.cex.length;
+    $("cexLead").textContent = state.done
+      ? (cexWon() ? "반례를 찾았어" : "반례를 못 찾았어")
+      : "이 코드가 틀리는 입력을 하나 만들어 봐";
+    $("cexHelp").textContent = state.done
+      ? "버그 코드와 바른 코드의 출력이 다르게 나오는 입력이 반례야."
+      : "문제의 입력 형식과 범위를 지켜서 넣어. 버그 코드와 바른 코드의 출력이 다르게 나오면 성공이야. 기회는 " + left + "번 남았어.";
+    $("cexField").hidden = state.done;
+    $("cexLog").innerHTML = state.cex.map(function (c, i) {
+      return '<li class="' + (c.ok ? "ok" : "no") + '"><p>' + (i + 1) + "번째 시도: " +
+        (c.ok ? "반례야! 출력이 달라." : "출력이 같아. 반례가 아니야.") + "</p>" +
+        '<div class="in"><b>입력</b><pre>' + esc(c.input) + "</pre></div>" +
+        "<div><b>이 코드의 출력</b><pre>" + esc(c.got) + "</pre></div>" +
+        "<div><b>정답</b><pre>" + esc(c.want) + "</pre></div></li>";
+    }).join("");
+  }
+
+  // 입력을 숫자 단위로 읽는 도구. 형식이 틀리면 fail 로 사유를 던진다.
+  function reader(text) {
+    var tok = text.trim().split(/\s+/).filter(Boolean), k = 0;
+    var t = {
+      fail: function (msg) { throw { cex: msg }; },
+      int: function (lo, hi) {
+        if (k >= tok.length) t.fail("입력이 형식보다 짧아.");
+        var raw = tok[k++];
+        if (!/^-?\d+$/.test(raw)) t.fail("'" + raw + "' 은(는) 정수가 아니야.");
+        var v = Number(raw);
+        if (v < lo || v > hi) t.fail(raw + " 은(는) 범위(" + lo.toLocaleString() + " ~ " + hi.toLocaleString() + ")를 벗어나.");
+        return v;
+      },
+      ints: function (n, lo, hi) {
+        if (n > 1000) t.fail("여기서는 수를 1000개까지만 넣을 수 있어.");
+        var r = [];
+        for (var i = 0; i < n; i++) r.push(t.int(lo, hi));
+        return r;
+      },
+      end: function () { if (k < tok.length) t.fail("입력이 형식보다 길어. 개수를 확인해 줘."); },
+    };
+    return t;
+  }
+
   function renderState(popIndex) {
     var stage = state.done ? "done" : state.findDone ? "fix" : "find";
 
@@ -567,15 +707,25 @@ button { font: inherit; color: inherit; }
       if (i === popIndex) cls += " pop";
       boxes += '<i class="' + cls + '"></i>';
     }
-    var fcls = state.fix === null ? "" : fixed() ? "hit" : "miss";
-    if (popIndex === "fix") fcls += " pop";
-    boxes += '<b class="sep"></b><i class="fx ' + fcls + '"></i>';
+    if (isAlgo && hasStage2) {
+      boxes += '<b class="sep"></b>';
+      for (var c = 0; c < CEX_TRIES; c++) {
+        var t = state.cex[c];
+        var ccls = t === undefined ? "" : t.ok ? "hit" : "miss";
+        if (popIndex === "cex" && c === state.cex.length - 1) ccls += " pop";
+        boxes += '<i class="fx ' + ccls + '"></i>';
+      }
+    } else if (hasStage2) {
+      var fcls = state.fix === null ? "" : fixed() ? "hit" : "miss";
+      if (popIndex === "fix") fcls += " pop";
+      boxes += '<b class="sep"></b><i class="fx ' + fcls + '"></i>';
+    }
     $("triesBoxes").innerHTML = boxes;
     $("triesLabel").textContent =
       stage === "find" ? "찾기 " + (MAX_TRIES - state.guesses.length) + "번 남음"
-      : stage === "fix" ? "고치기는 한 번뿐"
+      : stage === "fix" ? (isAlgo ? "반례 " + (CEX_TRIES - state.cex.length) + "번 남음" : "고치기는 한 번뿐")
       : (state.found ? "찾기 " + state.guesses.length + "/" + MAX_TRIES : "찾기 실패") +
-        (fixed() ? ", 고치기 성공" : ", 고치기 실패");
+        (!hasStage2 ? "" : isAlgo ? (cexWon() ? ", 반례 성공" : ", 반례 실패") : (fixed() ? ", 고치기 성공" : ", 고치기 실패"));
 
     // 줄 상태
     $("rows").querySelectorAll("button.row").forEach(function (row) {
@@ -609,6 +759,9 @@ button { font: inherit; color: inherit; }
     if (stage === "find") {
       btn.disabled = picked === null;
       btn.textContent = picked === null ? "줄을 먼저 골라" : picked + "번 줄로 제출";
+    } else if (stage === "fix" && isAlgo) {
+      btn.disabled = false;
+      btn.textContent = "이 입력으로 반례 제출";
     } else if (stage === "fix") {
       btn.disabled = optPicked === null;
       btn.textContent = optPicked === null ? "보기를 먼저 골라" : KEYS[order.indexOf(optPicked)] + "로 고치기";
@@ -618,6 +771,7 @@ button { font: inherit; color: inherit; }
     $("codeHelp").textContent = stage === "find" ? "1단계: 버그가 있는 줄을 골라" : "버그는 " + puzzle.bug + "번 줄";
 
     renderFix();
+    renderCex();
     if (stage === "done") renderResult();
   }
 
@@ -625,14 +779,18 @@ button { font: inherit; color: inherit; }
     $("result").hidden = false;
     var n = state.guesses.length;
     var head, sub;
-    if (state.found && fixed()) {
-      head = n === 1 ? "한 번에 찾고 제대로 고쳤어" : n + "번 만에 찾고 제대로 고쳤어";
+    var second = isAlgo ? "반례" : "고치기";
+    if (state.found && stage2Won()) {
+      head = (n === 1 ? "한 번에 찾고 " : n + "번 만에 찾고 ") + (isAlgo ? "반례까지 만들었어" : "제대로 고쳤어");
       sub = "오늘 버그는 완전히 잡았어.";
-    } else if (state.found) {
-      head = "찾긴 했는데 고치기에서 틀렸어";
+    } else if (state.found && hasStage2) {
+      head = "찾긴 했는데 " + second + "에서 막혔어";
       sub = "어디가 틀렸는지는 알았으니 절반은 온 거야.";
-    } else if (fixed()) {
-      head = "줄은 놓쳤지만 고치는 법은 알았어";
+    } else if (state.found) {
+      head = n === 1 ? "한 번에 찾았어" : n + "번 만에 찾았어";
+      sub = puzzle.bug + "번 줄이 버그였어.";
+    } else if (stage2Won()) {
+      head = isAlgo ? "줄은 놓쳤지만 반례는 만들었어" : "줄은 놓쳤지만 고치는 법은 알았어";
       sub = "버그는 " + puzzle.bug + "번 줄에 있었어.";
     } else {
       head = "오늘은 놓쳤어";
@@ -640,6 +798,15 @@ button { font: inherit; color: inherit; }
     }
     $("verdict").innerHTML = esc(head) + "<small>" + esc(sub) + "</small>";
     $("explain").textContent = puzzle.explain;
+    // 고치기 단계가 없는 날(알고리즘)은 결과에서 고친 줄을 보여준다
+    var rd = $("resultDiff");
+    rd.hidden = !isAlgo;
+    if (isAlgo) {
+      var b = lines[puzzle.bug - 1], f = puzzle.fix;
+      var cut = Math.min(b.search(/\S|$/), f.search(/\S|$/));
+      rd.innerHTML = '<div class="del"><span>-</span><code>' + paint(b.slice(cut), puzzle.lang) + "</code></div>" +
+        '<div class="add"><span>+</span><code>' + paint(f.slice(cut), puzzle.lang) + "</code></div>";
+    }
 
     var s = load("stats", { played: 0, won: 0, streak: 0, best: 0 });
     var rate = s.played ? Math.round((s.won / s.played) * 100) : 0;
@@ -656,7 +823,7 @@ button { font: inherit; color: inherit; }
   function finish() {
     state.done = true;
     if (override !== null) return;
-    var won = state.found && fixed();
+    var won = state.found && (hasStage2 ? stage2Won() : true);
     var s = load("stats", { played: 0, won: 0, streak: 0, best: 0, lastWin: null, lastDay: null });
     if (s.lastDay === today) return; // 같은 날 두 번 세지 않는다
     s.played += 1;
@@ -685,7 +852,7 @@ button { font: inherit; color: inherit; }
     if (hit || state.guesses.length >= MAX_TRIES) {
       state.findDone = true;
       state.found = hit;
-      if (options.length < 2) finish();
+      if (!hasStage2) finish();
     }
     save("day:" + dateKey, state);
     renderState(state.guesses.length - 1);
@@ -695,7 +862,7 @@ button { font: inherit; color: inherit; }
     if (missRow) missRow.classList.add("shake");
     var bugRow = state.findDone ? rowOf(puzzle.bug) : null;
     if (bugRow) bugRow.classList.add("flash");
-    if (state.findDone) scrollTo(state.done ? "result" : "fix");
+    if (state.findDone) scrollTo(state.done ? "result" : isAlgo ? "cex" : "fix");
   }
 
   function submitFix() {
@@ -706,6 +873,27 @@ button { font: inherit; color: inherit; }
     save("day:" + dateKey, state);
     renderState("fix");
     scrollTo("fix");
+  }
+
+  function submitCex() {
+    var text = $("cexInput").value;
+    var err = $("cexError");
+    err.textContent = "";
+    if (!text.trim()) { err.textContent = "입력을 먼저 넣어 줘."; return; }
+    var data;
+    try {
+      data = puzzle.judge.parse(reader(text));
+    } catch (e) {
+      // 형식이 틀린 입력은 기회를 쓰지 않는다
+      err.textContent = e && e.cex ? e.cex : "입력을 읽지 못했어. 형식을 확인해 줘.";
+      return;
+    }
+    var got = puzzle.judge.buggy(data), want = puzzle.judge.correct(data);
+    state.cex.push({ input: text.trim(), got: got, want: want, ok: got !== want });
+    if (cexWon() || state.cex.length >= CEX_TRIES) finish();
+    save("day:" + dateKey, state);
+    renderState("cex");
+    if (state.done) scrollTo("cex");
   }
 
   $("rows").addEventListener("click", function (e) {
@@ -724,7 +912,9 @@ button { font: inherit; color: inherit; }
   });
   $("submit").addEventListener("click", function () {
     if (state.done) return;
-    if (state.findDone) submitFix(); else submitFind();
+    if (!state.findDone) submitFind();
+    else if (isAlgo) submitCex();
+    else submitFix();
   });
 
   // ---------- 공유 ----------
@@ -732,7 +922,10 @@ button { font: inherit; color: inherit; }
     var G = "🟩", R = "🟥";
     var find = state.guesses.map(function (n) { return n === puzzle.bug ? G : R; }).join("");
     var url = location.protocol === "file:" ? "" : "\n" + location.origin + location.pathname;
-    return "버글 #" + issue + "\n찾기 " + find + "\n고치기 " + (fixed() ? G : R) + url;
+    var second = !hasStage2 ? ""
+      : isAlgo ? "\n반례 " + state.cex.map(function (c) { return c.ok ? G : R; }).join("")
+      : "\n고치기 " + (fixed() ? G : R);
+    return "버글 #" + issue + (isAlgo ? " 알고리즘" : "") + "\n찾기 " + find + second + url;
   }
 
   var toastTimer = null;
