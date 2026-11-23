@@ -315,6 +315,21 @@ button { font: inherit; color: inherit; }
 .cex-log li div { min-width: 0; }
 .cex-log li div b { display: block; font-size: 12px; font-weight: 600; color: var(--ink-3); margin-bottom: 4px; }
 .cex-log li .in { grid-column: 1 / -1; }
+.rules { border: 1px solid var(--line); border-radius: 12px; background: var(--surface); font-size: 13.5px; line-height: 1.5; }
+.rules summary {
+  list-style: none; cursor: pointer; padding: 11px 14px; font-weight: 600; font-size: 14px;
+  display: flex; justify-content: space-between; align-items: center; -webkit-tap-highlight-color: transparent;
+}
+.rules summary::-webkit-details-marker { display: none; }
+.rules summary::after { content: "+"; font-family: var(--mono); color: var(--ink-3); font-weight: 400; font-size: 16px; }
+.rules[open] summary::after { content: "\2013"; }
+.rules summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 12px; }
+.rules ul { list-style: none; margin: 0; padding: 0 14px; display: grid; gap: 8px; }
+.rules li { display: grid; gap: 1px; }
+.rules li span, .rules p { color: var(--ink-2); }
+.rules p { margin: 10px 14px 0; }
+.rules p:last-child { margin-bottom: 12px; }
+.rules p b { color: var(--ink); font-weight: 600; }
 .kinds h2 { margin: 6px 0 8px; font-size: 12px; font-weight: 600; letter-spacing: 0.04em; color: var(--ink-3); }
 .kinds ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
 .kinds li {
@@ -405,6 +420,17 @@ button { font: inherit; color: inherit; }
       <div class="issue-meta"><b id="subject">&nbsp;</b><span id="dateLabel">&nbsp;</span></div>
     </div>
     <p class="goal"><span id="goalLabel">이 코드가 하려던 일</span><span id="goal" style="all:unset"></span></p>
+    <details class="rules" id="rules">
+      <summary>정답이 될 수 있는 버그</summary>
+      <ul>
+        <li><b>의도 오류</b><span>컴파일도 되고 돌아가지만, 설명에 적힌 동작과 다르게 동작한다. 대부분의 문제가 여기 속한다.</span></li>
+        <li><b>실행 오류</b><span>돌리다가 죽거나, 배열 밖이나 남의 메모리를 건드린다.</span></li>
+        <li><b>경계 오류</b><span>평소엔 맞는데 끝값, 큰 수, 음수 같은 특정 입력에서만 틀린다.</span></li>
+        <li><b>동시성 오류</b><span>스레드 여러 개가 동시에 돌 때만 드러난다.</span></li>
+      </ul>
+      <p>정답이 아닌 것: <b>문법 오류</b>(컴파일이 안 되는 코드)는 나오지 않는다. 변수 이름, 들여쓰기, 느린 코드도 버그로 치지 않는다.</p>
+      <p>버그는 항상 <b>딱 한 줄</b>이고, 코드 위의 설명이 명세다. 설명에 적힌 동작은 전부 의도한 것이다.</p>
+    </details>
     <div class="tries" aria-live="polite">
       <div class="tries-boxes" id="triesBoxes"></div>
       <div class="tries-label" id="triesLabel"></div>
@@ -414,7 +440,7 @@ button { font: inherit; color: inherit; }
   <aside class="side">
     <ol class="hints" id="hints"></ol>
     <section class="kinds" id="kinds" hidden>
-      <h2>이 과목에서 나올 수 있는 버그</h2>
+      <h2>힌트: 이 과목에서 나올 수 있는 버그</h2>
       <ul id="kindList"></ul>
     </section>
     <p class="note" id="testNote" hidden></p>
@@ -583,13 +609,18 @@ button { font: inherit; color: inherit; }
       ["비교와 정렬", "비교 함수나 정렬 기준이 틀림"],
     ],
   };
+  function renderRules() {
+    var seen = load("seenRules", false);
+    $("rules").open = !seen;
+    save("seenRules", true);
+  }
+
   function renderKinds() {
     var list = KINDS[puzzle.subject];
     if (!list) return;
     $("kindList").innerHTML = list.map(function (k) {
       return "<li><b>" + esc(k[0]) + "</b><span>" + esc(k[1]) + "</span></li>";
     }).join("");
-    $("kinds").hidden = false;
   }
 
   // ---------- 색칠 ----------
@@ -799,6 +830,9 @@ button { font: inherit; color: inherit; }
         : '<li class="locked"><span class="tag">' + names[i] + "</span><p>" +
           (stage === "find" && i === open ? "한 번 틀리면 열려" : "잠김") + "</p></li>";
     }).join("");
+
+    // 과목별 버그 목록은 한 번 틀리면(또는 끝나면) 열리는 힌트다
+    $("kinds").hidden = !$("kindList").innerHTML || (misses() === 0 && !state.findDone);
 
     // 폰에서는 힌트 목록이 코드 아래에 있으므로, 방금 열린 힌트를 제출 버튼 위에도 보여준다
     var dh = $("dockHint");
@@ -1030,6 +1064,7 @@ button { font: inherit; color: inherit; }
 
   // ---------- 시작 ----------
   renderHead();
+  renderRules();
   renderKinds();
   renderRows();
   renderState();
