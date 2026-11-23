@@ -315,6 +315,14 @@ button { font: inherit; color: inherit; }
 .cex-log li div { min-width: 0; }
 .cex-log li div b { display: block; font-size: 12px; font-weight: 600; color: var(--ink-3); margin-bottom: 4px; }
 .cex-log li .in { grid-column: 1 / -1; }
+.kinds h2 { margin: 6px 0 8px; font-size: 12px; font-weight: 600; letter-spacing: 0.04em; color: var(--ink-3); }
+.kinds ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.kinds li {
+  display: grid; gap: 1px; padding: 9px 12px;
+  border: 1px solid var(--line); border-radius: 10px; font-size: 13.5px; line-height: 1.45;
+}
+.kinds li b { font-weight: 600; }
+.kinds li span { color: var(--ink-2); font-size: 12.5px; }
 .explain { margin: 0; font-size: 15px; line-height: 1.7; color: var(--ink-2); max-width: 60ch; }
 .actions { display: grid; grid-template-columns: 1fr; gap: 10px; }
 .stats {
@@ -405,6 +413,10 @@ button { font: inherit; color: inherit; }
 
   <aside class="side">
     <ol class="hints" id="hints"></ol>
+    <section class="kinds" id="kinds" hidden>
+      <h2>이 과목에서 나올 수 있는 버그</h2>
+      <ul id="kindList"></ul>
+    </section>
     <p class="note" id="testNote" hidden></p>
   </aside>
 
@@ -540,6 +552,45 @@ button { font: inherit; color: inherit; }
   if (!hasStage2 && state.findDone) state.done = true;
   var picked = null;    // 찾기 단계에서 고른 줄
   var optPicked = null; // 고치기 단계에서 고른 보기
+
+  // ---------- 과목별로 나올 수 있는 버그 ----------
+  // 오늘 문제의 버그는 이 중 하나다. 목록은 과목마다 고정이라 답을 알려주지는 않는다.
+  var KINDS = {
+    "C 포인터": [
+      ["배열 범위", "인덱스가 한 칸 넘치거나 모자람 (<와 <=)"],
+      ["문자열 끝", "'\\0' 자리를 빼먹음"],
+      ["값과 주소", "&나 *를 빼먹거나 잘못 붙임"],
+      ["연산자 우선순위", "*p++ 처럼 생각과 다르게 묶임"],
+      ["메모리 크기", "malloc이나 sizeof로 잡은 크기가 틀림"],
+    ],
+    "SQL": [
+      ["NULL 비교", "= NULL 처럼 NULL을 값처럼 비교함"],
+      ["조인 조건 위치", "ON에 둘 조건을 WHERE에 둬서 행이 사라짐"],
+      ["AND / OR 우선순위", "괄호가 없어서 조건이 다르게 묶임"],
+      ["집계와 그룹", "GROUP BY나 COUNT 대상이 틀림"],
+    ],
+    "동기화": [
+      ["조건 변수 대기", "if로 한 번만 검사하고 깨어난 뒤 다시 확인하지 않음"],
+      ["락 해제 누락", "어떤 경로에서 unlock 없이 빠져나감"],
+      ["공유 변수 넘기기", "여러 스레드에 같은 변수의 주소를 넘김"],
+      ["락 없는 접근", "공유 변수를 락 밖에서 읽거나 씀"],
+    ],
+    "알고리즘": [
+      ["경계 조건", "반복 조건의 <와 <=, 시작과 끝 인덱스"],
+      ["초기값", "최댓값, 최솟값, 합을 잘못된 값으로 시작함"],
+      ["정수 오버플로", "계산 도중 int 범위를 넘김"],
+      ["같은 원소 중복", "서로 달라야 할 두 원소로 같은 것을 씀"],
+      ["비교와 정렬", "비교 함수나 정렬 기준이 틀림"],
+    ],
+  };
+  function renderKinds() {
+    var list = KINDS[puzzle.subject];
+    if (!list) return;
+    $("kindList").innerHTML = list.map(function (k) {
+      return "<li><b>" + esc(k[0]) + "</b><span>" + esc(k[1]) + "</span></li>";
+    }).join("");
+    $("kinds").hidden = false;
+  }
 
   // ---------- 색칠 ----------
   function esc(s) {
@@ -979,6 +1030,7 @@ button { font: inherit; color: inherit; }
 
   // ---------- 시작 ----------
   renderHead();
+  renderKinds();
   renderRows();
   renderState();
 })();
