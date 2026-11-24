@@ -398,9 +398,9 @@ button { font: inherit; color: inherit; }
   .left {
     grid-area: left; display: flex; flex-direction: column; gap: 22px;
     position: sticky; top: 40px; align-self: start;
-    max-height: calc(100dvh - 80px); overflow-y: auto; scrollbar-width: none;
+    max-height: calc(100dvh - 80px); overflow-y: auto; scrollbar-width: thin;
+    padding-right: 6px; overscroll-behavior: contain;
   }
-  .left::-webkit-scrollbar { display: none; }
   .mast { gap: 14px; }
   .left { gap: 16px; }
   .hints li { padding: 8px 0; }
@@ -440,6 +440,18 @@ button { font: inherit; color: inherit; }
       <div class="issue-no" id="issueNo">#&ndash;</div>
       <div class="issue-meta"><b id="subject">&nbsp;</b><span id="dateLabel">&nbsp;</span></div>
     </div>
+    <p class="goal"><span id="goalLabel">이 코드가 하려던 일</span><span id="goal"></span></p>
+    <section class="problem" id="problem" hidden></section>
+    <details class="rules" id="rules">
+      <summary>정답이 될 수 있는 버그</summary>
+      <ul>
+        <li><b>의도 오류</b><span>돌아가긴 하지만 설명과 다르게 동작한다. 대부분이 여기 속한다.</span></li>
+        <li><b>실행 오류</b><span>돌리다 죽거나 배열 밖 메모리를 건드린다.</span></li>
+        <li><b>경계 오류</b><span>끝값, 큰 수, 음수 같은 특정 입력에서만 틀린다.</span></li>
+        <li><b>동시성 오류</b><span>스레드 여러 개가 동시에 돌 때만 드러난다.</span></li>
+      </ul>
+      <p><b>문법 오류</b>(컴파일 에러), 이름, 들여쓰기, 속도는 정답이 아니다. 버그는 항상 <b>딱 한 줄</b>이고, 코드 위 설명이 명세다.</p>
+    </details>
     <div class="tries" aria-live="polite">
       <div class="tries-boxes" id="triesBoxes"></div>
       <div class="tries-label" id="triesLabel"></div>
@@ -458,18 +470,6 @@ button { font: inherit; color: inherit; }
   </div>
 
   <main class="stage">
-    <p class="goal"><span id="goalLabel">이 코드가 하려던 일</span><span id="goal"></span></p>
-    <section class="problem" id="problem" hidden></section>
-    <details class="rules" id="rules">
-      <summary>정답이 될 수 있는 버그</summary>
-      <ul>
-        <li><b>의도 오류</b><span>돌아가긴 하지만 설명과 다르게 동작한다. 대부분이 여기 속한다.</span></li>
-        <li><b>실행 오류</b><span>돌리다 죽거나 배열 밖 메모리를 건드린다.</span></li>
-        <li><b>경계 오류</b><span>끝값, 큰 수, 음수 같은 특정 입력에서만 틀린다.</span></li>
-        <li><b>동시성 오류</b><span>스레드 여러 개가 동시에 돌 때만 드러난다.</span></li>
-      </ul>
-      <p><b>문법 오류</b>(컴파일 에러), 이름, 들여쓰기, 속도는 정답이 아니다. 버그는 항상 <b>딱 한 줄</b>이고, 코드 위 설명이 명세다.</p>
-    </details>
 
     <section class="code" aria-label="오늘의 코드">
       <div class="code-head"><b id="langLabel"></b><span id="codeHelp">버그가 있는 줄을 골라</span></div>
