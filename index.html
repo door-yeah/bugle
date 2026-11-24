@@ -453,6 +453,13 @@ button { font: inherit; color: inherit; }
       <ul id="kindList"></ul>
       <p class="kind-desc" id="kindDesc">눌러서 설명 보기</p>
     </section>
+    <p class="note" id="testNote" hidden></p>
+  </aside>
+  </div>
+
+  <main class="stage">
+    <p class="goal"><span id="goalLabel">이 코드가 하려던 일</span><span id="goal"></span></p>
+    <section class="problem" id="problem" hidden></section>
     <details class="rules" id="rules">
       <summary>정답이 될 수 있는 버그</summary>
       <ul>
@@ -463,13 +470,6 @@ button { font: inherit; color: inherit; }
       </ul>
       <p><b>문법 오류</b>(컴파일 에러), 이름, 들여쓰기, 속도는 정답이 아니다. 버그는 항상 <b>딱 한 줄</b>이고, 코드 위 설명이 명세다.</p>
     </details>
-    <p class="note" id="testNote" hidden></p>
-  </aside>
-  </div>
-
-  <main class="stage">
-    <p class="goal"><span id="goalLabel">이 코드가 하려던 일</span><span id="goal"></span></p>
-    <section class="problem" id="problem" hidden></section>
 
     <section class="code" aria-label="오늘의 코드">
       <div class="code-head"><b id="langLabel"></b><span id="codeHelp">버그가 있는 줄을 골라</span></div>
