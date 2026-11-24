@@ -317,21 +317,25 @@ button { font: inherit; color: inherit; }
 .cex-log li div { min-width: 0; }
 .cex-log li div b { display: block; font-size: 12px; font-weight: 600; color: var(--ink-3); margin-bottom: 4px; }
 .cex-log li .in { grid-column: 1 / -1; }
-.rules { border: 1px solid var(--line); border-radius: 12px; background: var(--surface); font-size: 13.5px; line-height: 1.5; }
-.rules summary {
-  list-style: none; cursor: pointer; padding: 11px 14px; font-weight: 600; font-size: 14px;
-  display: flex; justify-content: space-between; align-items: center; -webkit-tap-highlight-color: transparent;
+.rules-btn {
+  margin-left: auto; padding: 4px 10px; border: 1px solid var(--line); border-radius: 999px;
+  background: transparent; color: var(--ink-2); font-size: 12.5px; font-weight: 500; cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
 }
-.rules summary::-webkit-details-marker { display: none; }
-.rules summary::after { content: "+"; font-family: var(--mono); color: var(--ink-3); font-weight: 400; font-size: 16px; }
-.rules[open] summary::after { content: "\2013"; }
-.rules summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 12px; }
-.rules ul { list-style: none; margin: 0; padding: 0 14px; display: grid; gap: 8px; }
-.rules li { display: grid; gap: 1px; }
-.rules li span, .rules p { color: var(--ink-2); }
-.rules p { margin: 10px 14px 0; }
-.rules p:last-child { margin-bottom: 12px; }
-.rules p b { color: var(--ink); font-weight: 600; }
+.rules-btn:hover { color: var(--ink); border-color: var(--ink-3); }
+.rules-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.rules-dialog {
+  width: min(420px, calc(100vw - 32px)); padding: 20px; border: 1px solid var(--line); border-radius: 16px;
+  background: var(--surface); color: var(--ink); box-shadow: var(--shadow); font-size: 14px; line-height: 1.55;
+}
+.rules-dialog::backdrop { background: rgba(10, 10, 12, 0.55); }
+.rules-dialog h2 { margin: 0 0 14px; font-size: 17px; font-weight: 700; letter-spacing: -0.01em; }
+.rules-dialog ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.rules-dialog li { display: grid; gap: 1px; }
+.rules-dialog li span, .rules-dialog p { color: var(--ink-2); }
+.rules-dialog p { margin: 14px 0 0; }
+.rules-dialog p b { color: var(--ink); font-weight: 600; }
+.rules-dialog form { margin-top: 18px; }
 .brand { flex-wrap: wrap; }
 .practice-link {
   margin-left: auto; font-size: 12.5px; font-weight: 600; color: var(--accent);
@@ -395,12 +399,9 @@ button { font: inherit; color: inherit; }
     gap: 56px; padding: 56px 40px 40px;
   }
   /* 왼쪽은 화면에 고정해서 스크롤하지 않아도 늘 보이게 한다 */
-  .left {
-    grid-area: left; display: flex; flex-direction: column; gap: 22px;
-    position: sticky; top: 40px; align-self: start;
-    max-height: calc(100dvh - 80px); overflow-y: auto; scrollbar-width: thin;
-    padding-right: 6px; overscroll-behavior: contain;
-  }
+  .left { grid-area: left; display: flex; flex-direction: column; gap: 22px; align-self: start; }
+  /* 화면 높이 안에 다 들어갈 때만 고정한다. 넘치면 페이지와 같이 스크롤된다. */
+  .left.pin { position: sticky; top: 40px; }
   .mast { gap: 14px; }
   .left { gap: 16px; }
   .hints li { padding: 8px 0; }
@@ -432,7 +433,7 @@ button { font: inherit; color: inherit; }
     grid-template-columns: minmax(300px, 4fr) 8fr minmax(250px, 3fr);
     grid-template-areas: "left stage rail";
   }
-  .left .rules { display: none; }
+  .rules-btn { display: none; }
   .rail {
     display: block; grid-area: rail; position: sticky; top: 40px; align-self: start;
     font-size: 13.5px; line-height: 1.5;
@@ -463,19 +464,10 @@ button { font: inherit; color: inherit; }
     </div>
     <p class="goal"><span id="goalLabel">이 코드가 하려던 일</span><span id="goal"></span></p>
     <section class="problem" id="problem" hidden></section>
-    <details class="rules" id="rules">
-      <summary>정답이 될 수 있는 버그</summary>
-      <ul>
-        <li><b>의도 오류</b><span>돌아가긴 하지만 설명과 다르게 동작한다. 대부분이 여기 속한다.</span></li>
-        <li><b>실행 오류</b><span>돌리다 죽거나 배열 밖 메모리를 건드린다.</span></li>
-        <li><b>경계 오류</b><span>끝값, 큰 수, 음수 같은 특정 입력에서만 틀린다.</span></li>
-        <li><b>동시성 오류</b><span>스레드 여러 개가 동시에 돌 때만 드러난다.</span></li>
-      </ul>
-      <p><b>문법 오류</b>(컴파일 에러), 이름, 들여쓰기, 속도는 정답이 아니다. 버그는 항상 <b>딱 한 줄</b>이고, 문제 설명이 명세다.</p>
-    </details>
     <div class="tries" aria-live="polite">
       <div class="tries-boxes" id="triesBoxes"></div>
       <div class="tries-label" id="triesLabel"></div>
+      <button class="rules-btn" id="rulesBtn" type="button" aria-haspopup="dialog">정답 기준</button>
     </div>
   </header>
 
@@ -546,6 +538,18 @@ button { font: inherit; color: inherit; }
       <p><b>문법 오류</b>(컴파일 에러), 이름, 들여쓰기, 속도는 정답이 아니다. 버그는 항상 <b>딱 한 줄</b>이고, 문제 설명이 명세다.</p>
   </aside>
 </div>
+
+<dialog class="rules-dialog" id="rulesDialog" aria-labelledby="rulesTitle">
+  <h2 id="rulesTitle">정답이 될 수 있는 버그</h2>
+      <ul>
+        <li><b>의도 오류</b><span>돌아가긴 하지만 설명과 다르게 동작한다. 대부분이 여기 속한다.</span></li>
+        <li><b>실행 오류</b><span>돌리다 죽거나 배열 밖 메모리를 건드린다.</span></li>
+        <li><b>경계 오류</b><span>끝값, 큰 수, 음수 같은 특정 입력에서만 틀린다.</span></li>
+        <li><b>동시성 오류</b><span>스레드 여러 개가 동시에 돌 때만 드러난다.</span></li>
+      </ul>
+      <p><b>문법 오류</b>(컴파일 에러), 이름, 들여쓰기, 속도는 정답이 아니다. 버그는 항상 <b>딱 한 줄</b>이고, 문제 설명이 명세다.</p>
+  <form method="dialog"><button class="btn" type="submit">알겠어</button></form>
+</dialog>
 
 <div class="toast" id="toast" role="status"></div>
 
@@ -685,9 +689,16 @@ button { font: inherit; color: inherit; }
     ],
   };
   function renderRules() {
+    var dlg = $("rulesDialog");
+    var open = function () {
+      if (typeof dlg.showModal === "function") dlg.showModal(); else dlg.setAttribute("open", "");
+    };
+    $("rulesBtn").addEventListener("click", open);
+    dlg.addEventListener("click", function (e) { if (e.target === dlg) dlg.close(); });
+    // 처음 온 사람에게 한 번 띄운다. 넓은 화면은 오른쪽 칸에 늘 보이므로 띄우지 않는다.
     var seen = load("seenRules", false);
-    $("rules").open = !seen;
     save("seenRules", true);
+    if (!seen && getComputedStyle($("rulesBtn")).display !== "none") open();
   }
 
   function renderKinds() {
@@ -924,9 +935,7 @@ button { font: inherit; color: inherit; }
     }).join("");
 
     // 과목별 버그 목록은 한 번 틀리면(또는 끝나면) 열리는 힌트다
-    var kindsWasHidden = $("kinds").hidden;
     $("kinds").hidden = !$("kindList").innerHTML || (misses() === 0 && !state.findDone);
-    if (kindsWasHidden && !$("kinds").hidden) $("rules").open = false;
 
     // 폰에서는 힌트 목록이 코드 아래에 있으므로, 방금 열린 힌트를 제출 버튼 위에도 보여준다
     var dh = $("dockHint");
@@ -951,6 +960,7 @@ button { font: inherit; color: inherit; }
 
     renderFix();
     renderCex();
+    if (typeof fitLeft === "function") setTimeout(fitLeft, 0);
     if (stage === "done") renderResult();
   }
 
@@ -1169,6 +1179,14 @@ button { font: inherit; color: inherit; }
     else location.reload();
   });
   setInterval(function () { if (state.done) tick(); }, 1000);
+
+  // 왼쪽 칸이 화면 높이 안에 들어가면 고정, 아니면 페이지와 함께 스크롤
+  function fitLeft() {
+    var left = document.querySelector(".left");
+    if (!left) return;
+    left.classList.toggle("pin", left.offsetHeight <= window.innerHeight - 60);
+  }
+  window.addEventListener("resize", fitLeft);
 
   // ---------- 시작 ----------
   renderHead();
