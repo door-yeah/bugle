@@ -424,6 +424,27 @@ button { font: inherit; color: inherit; }
   .toast { bottom: 40px; }
 }
 
+/* 아주 넓은 화면: 안내를 코드 오른쪽의 세 번째 칸으로 뺀다 */
+.rail { display: none; }
+@media (min-width: 1360px) {
+  .page {
+    max-width: 1640px;
+    grid-template-columns: minmax(300px, 4fr) 8fr minmax(250px, 3fr);
+    grid-template-areas: "left stage rail";
+  }
+  .left .rules { display: none; }
+  .rail {
+    display: block; grid-area: rail; position: sticky; top: 40px; align-self: start;
+    font-size: 13.5px; line-height: 1.5;
+  }
+  .rail h2 { margin: 2px 0 14px; font-size: 14px; font-weight: 600; }
+  .rail ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
+  .rail li { display: grid; gap: 2px; padding-bottom: 12px; border-bottom: 1px solid var(--line); }
+  .rail li span, .rail p { color: var(--ink-2); }
+  .rail p { margin: 12px 0 0; }
+  .rail p b { color: var(--ink); font-weight: 600; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
 }
@@ -450,7 +471,7 @@ button { font: inherit; color: inherit; }
         <li><b>경계 오류</b><span>끝값, 큰 수, 음수 같은 특정 입력에서만 틀린다.</span></li>
         <li><b>동시성 오류</b><span>스레드 여러 개가 동시에 돌 때만 드러난다.</span></li>
       </ul>
-      <p><b>문법 오류</b>(컴파일 에러), 이름, 들여쓰기, 속도는 정답이 아니다. 버그는 항상 <b>딱 한 줄</b>이고, 코드 위 설명이 명세다.</p>
+      <p><b>문법 오류</b>(컴파일 에러), 이름, 들여쓰기, 속도는 정답이 아니다. 버그는 항상 <b>딱 한 줄</b>이고, 문제 설명이 명세다.</p>
     </details>
     <div class="tries" aria-live="polite">
       <div class="tries-boxes" id="triesBoxes"></div>
@@ -513,6 +534,17 @@ button { font: inherit; color: inherit; }
       <dl class="stats" id="stats"></dl>
     </section>
   </main>
+
+  <aside class="rail" aria-label="정답이 될 수 있는 버그">
+    <h2>정답이 될 수 있는 버그</h2>
+      <ul>
+        <li><b>의도 오류</b><span>돌아가긴 하지만 설명과 다르게 동작한다. 대부분이 여기 속한다.</span></li>
+        <li><b>실행 오류</b><span>돌리다 죽거나 배열 밖 메모리를 건드린다.</span></li>
+        <li><b>경계 오류</b><span>끝값, 큰 수, 음수 같은 특정 입력에서만 틀린다.</span></li>
+        <li><b>동시성 오류</b><span>스레드 여러 개가 동시에 돌 때만 드러난다.</span></li>
+      </ul>
+      <p><b>문법 오류</b>(컴파일 에러), 이름, 들여쓰기, 속도는 정답이 아니다. 버그는 항상 <b>딱 한 줄</b>이고, 문제 설명이 명세다.</p>
+  </aside>
 </div>
 
 <div class="toast" id="toast" role="status"></div>
