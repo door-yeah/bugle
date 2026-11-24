@@ -87,6 +87,7 @@ button { font: inherit; color: inherit; }
   align-content: start;
   grid-template-areas: "mast" "stage" "side";
 }
+.left { display: contents; }
 .mast { grid-area: mast; }
 .stage { grid-area: stage; }
 .side { grid-area: side; display: flex; flex-direction: column; gap: 14px; padding-bottom: 110px; }
@@ -111,8 +112,9 @@ button { font: inherit; color: inherit; }
 }
 .issue-meta { font-size: 13px; color: var(--ink-2); line-height: 1.4; }
 .issue-meta b { display: block; color: var(--ink); font-weight: 600; font-size: 14px; }
-.goal { margin: 0; font-size: 16px; line-height: 1.55; max-width: 34ch; }
-.goal span {
+.goal { margin: 0; font-size: 16px; line-height: 1.6; }
+.goal #goal { display: block; }
+.goal #goalLabel {
   display: block; margin-bottom: 4px;
   font-size: 12px; font-weight: 600; color: var(--ink-3); letter-spacing: 0.04em;
 }
@@ -338,13 +340,15 @@ button { font: inherit; color: inherit; }
 .practice-link:hover, .more:hover { text-decoration: underline; }
 .more { font-size: 14px; font-weight: 600; color: var(--accent); text-decoration: none; }
 .kinds h2 { margin: 6px 0 8px; font-size: 12px; font-weight: 600; letter-spacing: 0.04em; color: var(--ink-3); }
-.kinds ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
-.kinds li {
-  display: grid; gap: 1px; padding: 9px 12px;
-  border: 1px solid var(--line); border-radius: 10px; font-size: 13.5px; line-height: 1.45;
+.kinds ul { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; }
+.kinds button {
+  padding: 5px 10px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface);
+  font-size: 13px; font-weight: 600; cursor: pointer; -webkit-tap-highlight-color: transparent;
+  transition: background 0.2s var(--ease), border-color 0.2s var(--ease);
 }
-.kinds li b { font-weight: 600; }
-.kinds li span { color: var(--ink-2); font-size: 12.5px; }
+.kinds button[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-wash); color: var(--accent); }
+.kinds button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.kind-desc { margin: 8px 0 0; font-size: 13px; line-height: 1.5; color: var(--ink-2); min-height: 1.5em; }
 .explain { margin: 0; font-size: 15px; line-height: 1.7; color: var(--ink-2); max-width: 60ch; }
 .actions { display: grid; grid-template-columns: 1fr; gap: 10px; }
 .stats {
@@ -387,14 +391,23 @@ button { font: inherit; color: inherit; }
 @media (min-width: 900px) {
   .page {
     grid-template-columns: minmax(280px, 5fr) 9fr;
-    grid-template-areas: "mast stage" "side stage";
-    grid-template-rows: auto 1fr;
-    gap: 28px 56px; padding: 56px 40px 40px;
+    grid-template-areas: "left stage";
+    gap: 56px; padding: 56px 40px 40px;
   }
-  .mast { gap: 22px; }
+  /* 왼쪽은 화면에 고정해서 스크롤하지 않아도 늘 보이게 한다 */
+  .left {
+    grid-area: left; display: flex; flex-direction: column; gap: 22px;
+    position: sticky; top: 40px; align-self: start;
+    max-height: calc(100dvh - 80px); overflow-y: auto; scrollbar-width: none;
+  }
+  .left::-webkit-scrollbar { display: none; }
+  .mast { gap: 14px; }
+  .left { gap: 16px; }
+  .hints li { padding: 8px 0; }
   .side, .page.done .side { padding-bottom: 0; }
   .issue-no { font-size: 72px; }
   .goal { font-size: 17px; }
+  .issue-no { font-size: 56px; }
   .row { font-size: 14.5px; min-height: 36px; grid-template-columns: 52px 1fr; }
   .row .ln { font-size: 12px; padding-right: 16px; }
   .dock {
@@ -420,24 +433,13 @@ button { font: inherit; color: inherit; }
 <noscript><p style="padding:24px">이 게임은 자바스크립트가 켜져 있어야 해.</p></noscript>
 
 <div class="page" id="page">
+  <div class="left">
   <header class="mast">
     <div class="brand"><i></i><b>버글</b><span>하루 한 버그</span><a class="practice-link" id="practiceLink" href="?practice" hidden>심심하면 연습하기</a></div>
     <div class="issue">
       <div class="issue-no" id="issueNo">#&ndash;</div>
       <div class="issue-meta"><b id="subject">&nbsp;</b><span id="dateLabel">&nbsp;</span></div>
     </div>
-    <p class="goal"><span id="goalLabel">이 코드가 하려던 일</span><span id="goal" style="all:unset"></span></p>
-    <details class="rules" id="rules">
-      <summary>정답이 될 수 있는 버그</summary>
-      <ul>
-        <li><b>의도 오류</b><span>컴파일도 되고 돌아가지만, 설명에 적힌 동작과 다르게 동작한다. 대부분의 문제가 여기 속한다.</span></li>
-        <li><b>실행 오류</b><span>돌리다가 죽거나, 배열 밖이나 남의 메모리를 건드린다.</span></li>
-        <li><b>경계 오류</b><span>평소엔 맞는데 끝값, 큰 수, 음수 같은 특정 입력에서만 틀린다.</span></li>
-        <li><b>동시성 오류</b><span>스레드 여러 개가 동시에 돌 때만 드러난다.</span></li>
-      </ul>
-      <p>정답이 아닌 것: <b>문법 오류</b>(컴파일이 안 되는 코드)는 나오지 않는다. 변수 이름, 들여쓰기, 느린 코드도 버그로 치지 않는다.</p>
-      <p>버그는 항상 <b>딱 한 줄</b>이고, 코드 위의 설명이 명세다. 설명에 적힌 동작은 전부 의도한 것이다.</p>
-    </details>
     <div class="tries" aria-live="polite">
       <div class="tries-boxes" id="triesBoxes"></div>
       <div class="tries-label" id="triesLabel"></div>
@@ -449,11 +451,24 @@ button { font: inherit; color: inherit; }
     <section class="kinds" id="kinds" hidden>
       <h2>힌트: 이 과목에서 나올 수 있는 버그</h2>
       <ul id="kindList"></ul>
+      <p class="kind-desc" id="kindDesc">눌러서 설명 보기</p>
     </section>
+    <details class="rules" id="rules">
+      <summary>정답이 될 수 있는 버그</summary>
+      <ul>
+        <li><b>의도 오류</b><span>돌아가긴 하지만 설명과 다르게 동작한다. 대부분이 여기 속한다.</span></li>
+        <li><b>실행 오류</b><span>돌리다 죽거나 배열 밖 메모리를 건드린다.</span></li>
+        <li><b>경계 오류</b><span>끝값, 큰 수, 음수 같은 특정 입력에서만 틀린다.</span></li>
+        <li><b>동시성 오류</b><span>스레드 여러 개가 동시에 돌 때만 드러난다.</span></li>
+      </ul>
+      <p><b>문법 오류</b>(컴파일 에러), 이름, 들여쓰기, 속도는 정답이 아니다. 버그는 항상 <b>딱 한 줄</b>이고, 코드 위 설명이 명세다.</p>
+    </details>
     <p class="note" id="testNote" hidden></p>
   </aside>
+  </div>
 
   <main class="stage">
+    <p class="goal"><span id="goalLabel">이 코드가 하려던 일</span><span id="goal"></span></p>
     <section class="problem" id="problem" hidden></section>
 
     <section class="code" aria-label="오늘의 코드">
@@ -646,9 +661,17 @@ button { font: inherit; color: inherit; }
   function renderKinds() {
     var list = KINDS[puzzle.subject];
     if (!list) return;
-    $("kindList").innerHTML = list.map(function (k) {
-      return "<li><b>" + esc(k[0]) + "</b><span>" + esc(k[1]) + "</span></li>";
+    $("kindList").innerHTML = list.map(function (k, i) {
+      return '<li><button type="button" data-kind="' + i + '" aria-pressed="false">' + esc(k[0]) + "</button></li>";
     }).join("");
+    $("kindList").addEventListener("click", function (e) {
+      var b = e.target.closest("button[data-kind]");
+      if (!b) return;
+      var on = b.getAttribute("aria-pressed") !== "true";
+      $("kindList").querySelectorAll("button").forEach(function (x) { x.setAttribute("aria-pressed", "false"); });
+      b.setAttribute("aria-pressed", on ? "true" : "false");
+      $("kindDesc").textContent = on ? list[+b.dataset.kind][1] : "눌러서 설명 보기";
+    });
   }
 
   // ---------- 색칠 ----------
@@ -869,7 +892,9 @@ button { font: inherit; color: inherit; }
     }).join("");
 
     // 과목별 버그 목록은 한 번 틀리면(또는 끝나면) 열리는 힌트다
+    var kindsWasHidden = $("kinds").hidden;
     $("kinds").hidden = !$("kindList").innerHTML || (misses() === 0 && !state.findDone);
+    if (kindsWasHidden && !$("kinds").hidden) $("rules").open = false;
 
     // 폰에서는 힌트 목록이 코드 아래에 있으므로, 방금 열린 힌트를 제출 버튼 위에도 보여준다
     var dh = $("dockHint");
